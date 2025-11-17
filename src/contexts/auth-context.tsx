@@ -6,17 +6,15 @@ import { useRouter } from 'next/navigation';
 import type { User, Role } from '@/lib/types';
 import {
   useFirebase,
-  initiateEmailSignUp,
-  initiateEmailSignIn,
 } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  login: (email: string, password: string) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   register: (name: string, email: string, password: string, role: Role) => Promise<void>;
 }
@@ -56,8 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, isUserLoading, firestore, auth, user]);
 
-  const login = (email: string, password: string) => {
-    initiateEmailSignIn(auth, email, password);
+  const login = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle the user state update and redirect
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error; // Re-throw to be caught by the form
+    }
   };
 
   const logout = () => {
