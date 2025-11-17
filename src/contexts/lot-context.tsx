@@ -20,7 +20,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { user } = useUser();
 
-  // Query for all lots for buyers
+  // Query for all available lots for buyers using a collection group query
   const allLotsQuery = useMemoFirebase(
     () => user?.role === 'buyer' ? query(collectionGroup(firestore, 'lots'), where('status', '==', 'available')) : null,
     [firestore, user]
@@ -62,7 +62,8 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
   const lots = useMemo(() => {
     if (user?.role === 'buyer') return allLots || [];
-    if (user?.role === 'farmer') return userLots || [];
+    // For farmers, we return their specific lots
+    if (user?.role === 'farmer') return userLots || []; 
     return [];
   }, [user, allLots, userLots]);
 

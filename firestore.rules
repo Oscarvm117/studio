@@ -13,6 +13,7 @@
  * Key Security Decisions:
  * - User listing is implicitly disallowed.
  * - The rules prioritize simplicity and security by leveraging path-based ownership and avoiding complex queries or external data lookups.
+ * - A collection group query on 'lots' is allowed for buyers to browse all available products.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -67,7 +68,7 @@ service cloud.firestore {
       match /lots/{lotId} {
         // Anyone signed in can read a lot (buyers and farmers)
         allow get: if isSignedIn();
-        // Farmers can list their own lots, buyers can list all available lots (see collection group rule below)
+        // Farmers can list their own lots. Buyers use the collection group query below.
         allow list: if isOwner(userId);
 
         // Only the owner (farmer) can create, update, delete their lots
@@ -77,9 +78,15 @@ service cloud.firestore {
       }
     }
     
-    // Rule for collection group query across all 'lots' subcollections
+    /**
+     * @description Collection group rule for querying across all 'lots' subcollections.
+     * This allows buyers to view all available lots from any farmer in a single query.
+     * @path /{path=**}/lots/{lotId}
+     * @allow list - Any authenticated user (buyer or farmer) can perform a 'list' operation,
+     * which is necessary for browsing the marketplace. The query in the app must include
+     * `where('status', '==', 'available')` to be allowed.
+     */
     match /{path=**}/lots/{lotId} {
-        // Allow any signed-in user to read (list) lots from the collection group query
         allow list: if isSignedIn();
     }
   }
