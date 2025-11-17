@@ -59,7 +59,11 @@ interface CreateLotDialogProps {
   onLotCreated: (newLot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => void;
 }
 
-const getLotImage = (productType: string) => {
+export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+
+  const getLotImage = (productType: string) => {
     const hint = productType.toLowerCase();
     const found = PlaceHolderImages.find(img => hint.includes(img.id.toLowerCase()));
     if (found) {
@@ -71,11 +75,7 @@ const getLotImage = (productType: string) => {
         url: fieldImage?.imageUrl || PlaceHolderImages[0].imageUrl, 
         hint: fieldImage?.imageHint || 'field crop'
     };
-};
-
-export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
-  const [open, setOpen] = useState(false);
-  const { toast } = useToast();
+  };
 
   const form = useForm<z.infer<typeof lotSchema>>({
     resolver: zodResolver(lotSchema),
