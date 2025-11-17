@@ -77,12 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const userForDb: User = {
         id: newUser.uid,
-        name,
+        name: name,
         email: newUser.email!,
         role,
       };
 
-      await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      await setDoc(userDocRef, userForDb);
+      // Manually set the user in the state to trigger immediate redirection
       setUser(userForDb);
     } catch (error) {
         throw error;
