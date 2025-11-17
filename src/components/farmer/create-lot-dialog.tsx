@@ -156,7 +156,7 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una unidad" />
-                        </Trigger>
+                        </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
