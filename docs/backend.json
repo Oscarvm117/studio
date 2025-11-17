@@ -1,0 +1,206 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Biotrazo Marketplace, either a farmer or a buyer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "userType": {
+          "type": "string",
+          "description": "The type of user: 'farmer' or 'buyer'."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "User's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "User's last name."
+        }
+      },
+      "required": [
+        "id",
+        "userType",
+        "email",
+        "firstName",
+        "lastName"
+      ]
+    },
+    "FarmerDashboard": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FarmerDashboard",
+      "type": "object",
+      "description": "Represents the dashboard data for a farmer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FarmerDashboard entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 FarmerDashboard)"
+        },
+        "carbonReduced": {
+          "type": "number",
+          "description": "Amount of carbon reduced by the farmer."
+        },
+        "lotsCreated": {
+          "type": "number",
+          "description": "Number of lots created by the farmer."
+        },
+        "totalIncome": {
+          "type": "number",
+          "description": "Total income earned by the farmer."
+        },
+        "emissionReduced": {
+          "type": "number",
+          "description": "Amount of emission reduced by the farmer."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "carbonReduced",
+        "lotsCreated",
+        "totalIncome",
+        "emissionReduced"
+      ]
+    },
+    "Lot": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lot",
+      "type": "object",
+      "description": "Represents a lot of product created by a farmer and available for sale.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Lot entity."
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Reference to User (farmer). (Relationship: User 1:N Lot)"
+        },
+        "productType": {
+          "type": "string",
+          "description": "Type of product in the lot."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product in the lot."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement for the quantity (kg, lb, dozen)."
+        },
+        "harvestDate": {
+          "type": "string",
+          "description": "Harvest date of the product.",
+          "format": "date-time"
+        },
+        "location": {
+          "type": "string",
+          "description": "Location where the product was harvested."
+        },
+        "pricePerKg": {
+          "type": "number",
+          "description": "Price per kilogram of the product in Colombian Pesos."
+        },
+        "certifications": {
+          "type": "array",
+          "description": "Certifications associated with the lot (Organic, Fair Trade, etc.).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isAvailable": {
+          "type": "boolean",
+          "description": "Indicates whether the lot is currently available for purchase."
+        }
+      },
+      "required": [
+        "id",
+        "farmerId",
+        "productType",
+        "quantity",
+        "unit",
+        "harvestDate",
+        "location",
+        "pricePerKg",
+        "isAvailable"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Path-based ownership ensures only the user can read/write their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (same as the Firebase Auth UID)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/farmer_dashboard",
+        "definition": {
+          "entityName": "FarmerDashboard",
+          "schema": {
+            "$ref": "#/backend/entities/FarmerDashboard"
+          },
+          "description": "Stores farmer dashboard data. Path-based ownership ensures only the farmer can read/write their own dashboard data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the farmer (same as the Firebase Auth UID)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/lots/{lotId}",
+        "definition": {
+          "entityName": "Lot",
+          "schema": {
+            "$ref": "#/backend/entities/Lot"
+          },
+          "description": "Stores lot data for each farmer. Path-based ownership ensures only the farmer can read/write their own lots.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the farmer (same as the Firebase Auth UID)."
+            },
+            {
+              "name": "lotId",
+              "description": "The unique identifier of the lot."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Biotrazo Marketplace application, focusing on secure access control, scalability, and maintainability.  Authorization Independence is achieved by using path-based ownership for user data and denormalizing authorization data where needed. Structural Segregation ensures that collections contain documents with similar security needs.  This design avoids the need for complex `get()` calls in security rules, simplifies operations (transactions/batches), and ensures data integrity.\n\n**Authorization Independence:**\n\n*   Farmer data (lots, dashboard) are stored under the `/users/{userId}` path. This ensures that only the authenticated user can access their data.  No `get()` calls are required to validate ownership.\n\n**QAPs (Rules are not Filters):**\n\n*   The `/users/{userId}/lots/{lotId}` structure enables secure `list` operations for lots owned by a specific user. The security rules can easily enforce that only the owner can list or read their own lots.\n*   The segregation of data into different collections (e.g., users, lots) avoids mixing data with different access requirements in a single collection.  This simplifies the security rules and improves performance.\n"
+  }
+}
