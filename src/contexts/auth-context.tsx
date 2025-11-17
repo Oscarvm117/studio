@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, Role } from '@/lib/types';
 import {
@@ -23,29 +23,45 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const { auth, firestore, isUserLoading, user: firebaseUser } = useFirebase();
+  const [isAuthLoading, setAuthLoading] = useState(true);
+  const { auth, firestore, isUserLoading: isFirebaseUserLoading, user: firebaseUser } = useFirebase();
   const router = useRouter();
 
   useEffect(() => {
-    const checkUser = async () => {
+    // This effect is the single source of truth for the user's auth state.
+    // It runs when the firebaseUser object from onAuthStateChanged changes.
+
+    const resolveUser = async () => {
+      if (isFirebaseUserLoading) {
+        // If the initial Firebase auth check is still running, we are loading.
+        setAuthLoading(true);
+        return;
+      }
+      
       if (!firebaseUser) {
+        // If Firebase auth resolves and there's no user, we are done loading.
         setUser(null);
+        setAuthLoading(false);
         return;
       }
 
-      // Avoid re-fetching if user data is already loaded and matches the firebase user
-      if (user?.id === firebaseUser.uid) return;
+      // If a firebaseUser exists, but we already have our app user, do nothing.
+      if (user?.id === firebaseUser.uid) {
+         setAuthLoading(false);
+         return;
+      }
 
+      // If there IS a firebaseUser, we need to fetch their profile from Firestore.
+      // We are still in a loading state until this is complete.
+      setAuthLoading(true); 
       const userRef = doc(firestore, 'users', firebaseUser.uid);
       try {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          const userData = userSnap.data() as User;
-          setUser(userData);
+          setUser(userSnap.data() as User);
         } else {
-          // This case might happen if a user exists in Auth but not Firestore.
-          // This can be a valid state right after registration before the doc is created.
-          // Or it's an error state. For now, we'll log out to be safe.
+          // This can happen if a user is deleted from Firestore but not Auth.
+          // Sign them out to be safe.
           await auth.signOut();
           setUser(null);
         }
@@ -53,48 +69,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Error fetching user document:", error);
         await auth.signOut();
         setUser(null);
+      } finally {
+        // We are done loading, regardless of the outcome.
+        setAuthLoading(false);
       }
     };
 
-    if (!isUserLoading) {
-      checkUser();
-    }
-  }, [firebaseUser, isUserLoading, firestore, auth, user]);
+    resolveUser();
+  }, [firebaseUser, isFirebaseUserLoading, firestore, auth]);
 
   const login = async (email: string, password: string) => {
-    // This function will now throw an error on failure, which the form will catch.
+    // Let the form handle the try/catch. This function will throw on failure.
     await signInWithEmailAndPassword(auth, email, password);
-    // The useEffect will handle fetching user data and setting state.
+    // The useEffect above will trigger and handle the rest.
   };
 
   const logout = async () => {
     await auth.signOut();
-    setUser(null);
+    // The useEffect will handle setting user to null.
     router.push('/login');
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
+    // Throws on failure (e.g., email-in-use), which the form will catch.
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = userCredential.user;
     
     const userForDb: User = {
       id: newUser.uid,
-      name: name,
+      name,
       email: newUser.email!,
       role,
     };
 
     const userDocRef = doc(firestore, 'users', newUser.uid);
-    // Wait for the document to be created before proceeding
+    // Wait for the document to be created.
     await setDoc(userDocRef, userForDb);
-    // Manually set the user in the state to trigger immediate redirection
+
+    // Manually set the user in state to trigger immediate redirection.
+    // The useEffect will also run but this makes the UI feel faster.
     setUser(userForDb);
+    setAuthLoading(false);
   };
 
   const value = {
     user,
-    isAuthenticated: !!user && !!firebaseUser, // Be stricter: require both app user and firebase user
-    isAuthLoading: isUserLoading || (firebaseUser && !user), // Loading if firebase user exists but our app user doesn't yet
+    isAuthenticated: !!user,
+    isAuthLoading,
     login,
     logout,
     register,

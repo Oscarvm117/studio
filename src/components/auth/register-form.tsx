@@ -44,8 +44,9 @@ export function RegisterForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       await register(values.name, values.email, values.password, values.role as Role);
+      // On success, the AuthProvider's useEffect will handle redirection.
     } catch (error: any) {
-        let description = "No se pudo crear la cuenta.";
+        let description = "No se pudo crear la cuenta. Por favor, intenta de nuevo.";
         if (error.code === 'auth/email-already-in-use') {
             description = "Este correo electrónico ya está en uso.";
         }
