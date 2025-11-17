@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "tomatoes",
+      "description": "Crate of fresh red tomatoes",
+      "imageUrl": "https://images.unsplash.com/photo-1683009118353-0b3662f28de7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx0b21hdG9lcyUyMGZhcm18ZW58MHx8fHwxNzYzMzQ0ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "tomatoes farm"
+    },
+    {
+      "id": "potatoes",
+      "description": "Sack of freshly harvested potatoes",
+      "imageUrl": "https://images.unsplash.com/photo-1741517922250-2cef652f7e09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwb3RhdG9lcyUyMGhhcnZlc3R8ZW58MHx8fHwxNzYzMzQ0ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "potatoes harvest"
+    },
+    {
+      "id": "lettuce",
+      "description": "Heads of green lettuce",
+      "imageUrl": "https://images.unsplash.com/photo-1577429725284-625d60c2bad9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxsZXR0dWNlJTIwZmllbGR8ZW58MHx8fHwxNzYzMzQ0ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "lettuce field"
+    },
+    {
+      "id": "corn",
+      "description": "Ears of sweet corn",
+      "imageUrl": "https://images.unsplash.com/photo-1504788576473-fa4b594356a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb3JuJTIwZmllbGR8ZW58MHx8fHwxNzYzMzEyOTUxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "corn field"
+    },
+    {
+      "id": "carrots",
+      "description": "Bunch of orange carrots",
+      "imageUrl": "https://images.unsplash.com/photo-1759433582132-02e837355ff2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjYXJyb3RzJTIwYnVuY2h8ZW58MHx8fHwxNzYzMzEwOTgwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "carrots bunch"
+    },
+    {
+      "id": "coffee",
+      "description": "Sack of coffee beans",
+      "imageUrl": "https://images.unsplash.com/photo-1690983326555-8b8e27843a32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb2ZmZWUlMjBiZWFuc3xlbnwwfHx8fDE3NjMyNjU3Mjh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "coffee beans"
+    },
+    {
+      "id": "avocados",
+      "description": "Fresh avocados",
+      "imageUrl": "https://images.unsplash.com/photo-1585242902894-e8a65ecbe1ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhdm9jYWRvJTIwdHJlZXxlbnwwfHx8fDE3NjMzNDQ4NTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "avocado tree"
+    }
+  ]
 }
