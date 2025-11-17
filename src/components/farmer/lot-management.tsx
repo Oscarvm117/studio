@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { initialLots } from '@/lib/data';
 import type { Lot } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -44,15 +43,14 @@ function LotCard({ lot }: { lot: Lot }) {
 
 export function LotManagement() {
   const { user } = useAuth();
-  const { lots, addLot } = useLots();
+  const { addLot, userLots } = useLots();
   
   if (!user) return null;
 
-  const handleLotCreated = (newLot: Lot) => {
-    addLot(newLot);
+  const handleLotCreated = async (newLotData: Omit<Lot, 'id'|'farmerId'|'farmerName'|'status'>) => {
+    await addLot(newLotData);
   };
-
-  const userLots = lots.filter(lot => lot.farmerId === user.id);
+  
   const availableLots = userLots.filter(lot => lot.status === 'available');
   const soldLots = userLots.filter(lot => lot.status === 'sold');
 
@@ -63,7 +61,7 @@ export function LotManagement() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Mis Lotes</h2>
-          <CreateLotDialog onLotCreated={handleLotCreated} farmerId={user.id} farmerName={user.name} />
+          <CreateLotDialog onLotCreated={handleLotCreated} />
         </div>
         <Tabs defaultValue="available">
           <TabsList>

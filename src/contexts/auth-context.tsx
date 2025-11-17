@@ -1,68 +1,96 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, Role } from '@/lib/types';
-import { mockUsers } from '@/lib/data';
+import {
+  useFirebase,
+  initiateEmailSignUp,
+  initiateEmailSignIn,
+} from '@/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string) => void;
+  isAuthLoading: boolean;
+  login: (email: string, password: string) => void;
   logout: () => void;
-  register: (name: string, email: string, role: Role) => void;
+  register: (name: string, email: string, password: string, role: Role) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const { auth, firestore, isUserLoading, user: firebaseUser } = useFirebase();
   const router = useRouter();
 
   useEffect(() => {
-    // Check for a logged-in user in localStorage on initial load
-    const storedUser = localStorage.getItem('biotrazo-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+    const checkUser = async () => {
+      if (!firebaseUser) {
+        setUser(null);
+        return;
+      }
 
-  const login = (email: string) => {
-    const foundUser = mockUsers.find((u) => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('biotrazo-user', JSON.stringify(foundUser));
-      router.push(foundUser.role === 'farmer' ? '/farmer' : '/buyer');
-    } else {
-      // In a real app, you'd show an error.
-      alert('Usuario no encontrado');
+      if (user?.id === firebaseUser.uid) return;
+
+      const userRef = doc(firestore, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data() as User;
+        setUser(userData);
+      } else {
+        // This case might happen if a user exists in Auth but not Firestore.
+        // We log them out to be safe.
+        auth.signOut();
+        setUser(null);
+      }
+    };
+
+    if (!isUserLoading) {
+      checkUser();
     }
+  }, [firebaseUser, isUserLoading, firestore, auth, user]);
+
+  const login = (email: string, password: string) => {
+    initiateEmailSignIn(auth, email, password);
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('biotrazo-user');
-    router.push('/login');
+    auth.signOut().then(() => {
+      setUser(null);
+      router.push('/login');
+    });
   };
 
-  const register = (name: string, email: string, role: Role) => {
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role,
-    };
-    // In a real app, this would be an API call
-    mockUsers.push(newUser);
-    setUser(newUser);
-    localStorage.setItem('biotrazo-user', JSON.stringify(newUser));
-    router.push(newUser.role === 'farmer' ? '/farmer' : '/buyer');
+  const register = async (name: string, email: string, password: string, role: Role) => {
+    try {
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+      const newUser = userCredential.user;
+      
+      const userForDb: User = {
+        id: newUser.uid,
+        name,
+        email: newUser.email!,
+        role,
+      };
+
+      await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
+      setUser(userForDb);
+      // Let the useEffect handle the redirect
+    } catch (error) {
+      console.error('Registration failed:', error);
+      // Handle error with a toast or message
+    }
   };
 
   const value = {
     user,
     isAuthenticated: !!user,
+    isAuthLoading: isUserLoading,
     login,
     logout,
     register,

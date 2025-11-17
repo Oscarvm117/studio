@@ -13,21 +13,22 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, allowedRole }: DashboardLayoutProps) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isAuthLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // This effect will run on the client after hydration
+    if (isAuthLoading) return; // Wait until authentication state is determined
+
     if (!isAuthenticated) {
       router.replace('/login');
     } else if (user?.role !== allowedRole) {
       // Redirect if user has the wrong role
       router.replace(user?.role === 'farmer' ? '/farmer' : '/buyer');
     }
-  }, [isAuthenticated, user, allowedRole, router]);
+  }, [isAuthenticated, user, allowedRole, router, isAuthLoading]);
 
-  // Render a loading state or null while checking auth
-  if (!isAuthenticated || user?.role !== allowedRole) {
+  // Render a loading state while checking auth
+  if (isAuthLoading || !isAuthenticated || user?.role !== allowedRole) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>

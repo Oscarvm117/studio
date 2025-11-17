@@ -18,6 +18,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
     /**
      * @description Secures user profiles, ensuring only the user can manage their own data.
      * @path /users/{userId}
@@ -26,68 +34,53 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // Do not allow listing all users
 
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isOwner(userId) && resource.data.id == request.resource.data.id;
       allow delete: if isOwner(userId) && resource != null;
+
+       /**
+       * @description Secures farmer dashboard data, allowing only the farmer to manage their dashboard.
+       * @path /users/{userId}/farmer_dashboard
+       * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own dashboard when authenticated as 'farmer123'.
+       * @deny (create, update, delete, get) - User with ID 'user456' cannot create/update/delete/get the dashboard of 'farmer123'.
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /farmer_dashboard/{docId} {
+        allow get: if isOwner(userId);
+        allow list: if false;
+
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId) && resource.data.userId == request.resource.data.userId && resource != null;
+        allow delete: if isOwner(userId) && resource != null;
+      }
+
+      /**
+       * @description Secures lot data for farmers. Farmers can manage their lots. Buyers can read them.
+       * @path /users/{userId}/lots/{lotId}
+       * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own lot with ID 'lot456' when authenticated as 'farmer123'.
+       * @deny (create, update, delete) - User with ID 'user456' (buyer) cannot create/update/delete the lot 'lot456' belonging to 'farmer123'.
+       * @principle Enforces document ownership and validates relational integrity.
+       */
+      match /lots/{lotId} {
+        // Anyone signed in can read a lot (buyers and farmers)
+        allow get: if isSignedIn();
+        // Farmers can list their own lots, buyers can list all available lots (see collection group rule below)
+        allow list: if isOwner(userId);
+
+        // Only the owner (farmer) can create, update, delete their lots
+        allow create: if isOwner(userId) && request.resource.data.farmerId == userId;
+        allow update: if isOwner(userId) && resource.data.farmerId == request.resource.data.farmerId && resource != null;
+        allow delete: if isOwner(userId) && resource != null;
+      }
     }
-
-    /**
-     * @description Secures farmer dashboard data, allowing only the farmer to manage their dashboard.
-     * @path /users/{userId}/farmer_dashboard
-     * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own dashboard when authenticated as 'farmer123'.
-     * @deny (create, update, delete, get) - User with ID 'user456' cannot create/update/delete/get the dashboard of 'farmer123'.
-     * @principle Restricts access to a user's own data tree.
-     */
-    match /users/{userId}/farmer_dashboard {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource.data.userId == request.resource.data.userId && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Secures lot data for farmers, allowing only the farmer to manage their lots.
-     * @path /users/{userId}/lots/{lotId}
-     * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own lot with ID 'lot456' when authenticated as 'farmer123'.
-     * @deny (create, update, delete, get) - User with ID 'user456' cannot create/update/delete/get the lot 'lot456' belonging to 'farmer123'.
-     * @principle Enforces document ownership and validates relational integrity.
-     */
-    match /users/{userId}/lots/{lotId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId) && request.resource.data.farmerId == userId;
-      allow update: if isOwner(userId) && resource.data.farmerId == request.resource.data.farmerId && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+    
+    // Rule for collection group query across all 'lots' subcollections
+    match /{path=**}/lots/{lotId} {
+        // Allow any signed-in user to read (list) lots from the collection group query
+        allow list: if isSignedIn();
     }
   }
 }

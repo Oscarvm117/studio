@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { CartProvider } from '@/contexts/cart-context';
 import { LotProvider } from '@/contexts/lot-context';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -23,14 +24,16 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <LotProvider>
-            <CartProvider>
-              {children}
-              <Toaster />
-            </CartProvider>
-          </LotProvider>
-        </AuthProvider>
+        <FirebaseClientProvider>
+          <AuthProvider>
+            <LotProvider>
+              <CartProvider>
+                {children}
+                <Toaster />
+              </CartProvider>
+            </LotProvider>
+          </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

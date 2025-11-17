@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Lot } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { BuyerLotCard } from './lot-card';
 import { Search } from 'lucide-react';
@@ -9,18 +8,17 @@ import { useLots } from '@/contexts/lot-context';
 
 export function Marketplace() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { lots } = useLots();
-  const availableLots = lots.filter(lot => lot.status === 'available');
+  const { lots, isLoading } = useLots();
 
   const filteredLots = useMemo(() => {
-    if (!searchTerm) return availableLots;
+    if (!searchTerm) return lots;
 
-    return availableLots.filter(lot => 
+    return lots.filter(lot => 
       lot.productType.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.farmerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, availableLots]);
+  }, [searchTerm, lots]);
 
   return (
     <div className="space-y-8">
@@ -40,14 +38,18 @@ export function Marketplace() {
         />
       </div>
 
-      {filteredLots.length > 0 ? (
+      {isLoading ? (
+         <div className="flex justify-center items-center py-24">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+         </div>
+      ) : filteredLots.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredLots.map(lot => <BuyerLotCard key={lot.id} lot={lot} />)}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 py-24 text-center">
             <h3 className="text-xl font-semibold">No se encontraron lotes</h3>
-            <p className="text-muted-foreground">Intenta ajustar tu búsqueda o revisa más tarde.</p>
+            <p className="text-muted-foreground">No hay lotes disponibles en este momento. Intenta de nuevo más tarde.</p>
         </div>
       )}
     </div>

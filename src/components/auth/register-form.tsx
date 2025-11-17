@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres.' }),
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 export function RegisterForm() {
   const { register } = useAuth();
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,8 +41,16 @@ export function RegisterForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    register(values.name, values.email, values.role as Role);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      await register(values.name, values.email, values.password, values.role as Role);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error al registrar",
+        description: error.message || "No se pudo crear la cuenta.",
+      });
+    }
   }
 
   return (

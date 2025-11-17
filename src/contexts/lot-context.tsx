@@ -1,79 +1,77 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import type { Lot } from '@/lib/types';
-import { initialLots } from '@/lib/data';
+import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, collectionGroup, addDoc, doc, updateDoc, where, query } from 'firebase/firestore';
 
 interface LotContextType {
   lots: Lot[];
-  addLot: (lot: Lot) => void;
-  updateLot: (lotId: string, updatedLot: Partial<Lot>) => void;
+  addLot: (lot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
+  updateLot: (lotId: string, updatedLot: Partial<Lot>) => Promise<void>;
+  userLots: Lot[];
+  isLoading: boolean;
 }
 
 const LotContext = createContext<LotContextType | undefined>(undefined);
 
-// Helper function to stringify dates for storage
-const serializeLots = (lots: Lot[]): string => {
-  return JSON.stringify(lots.map(lot => ({
-    ...lot,
-    harvestDate: lot.harvestDate.toString(),
-  })));
-};
-
-// Helper function to parse dates from storage
-const deserializeLots = (storedLots: string): Lot[] => {
-    try {
-        const parsed = JSON.parse(storedLots);
-        return parsed.map((lot: any) => ({
-            ...lot,
-            harvestDate: lot.harvestDate, // Keep as string for now
-        }));
-    } catch (e) {
-        return [];
-    }
-};
-
-
 export function LotProvider({ children }: { children: ReactNode }) {
-  const [lots, setLots] = useState<Lot[]>([]);
+  const { firestore } = useFirebase();
+  const { user } = useUser();
 
-  useEffect(() => {
-    // On initial load, try to get lots from localStorage
-    const storedLots = localStorage.getItem('biotrazo-lots');
-    if (storedLots) {
-      setLots(deserializeLots(storedLots));
-    } else {
-      // If nothing in storage, use initial data and set it
-      setLots(initialLots);
-      localStorage.setItem('biotrazo-lots', serializeLots(initialLots));
+  // Query for all lots for buyers
+  const allLotsQuery = useMemoFirebase(
+    () => user?.role === 'buyer' ? query(collectionGroup(firestore, 'lots'), where('status', '==', 'available')) : null,
+    [firestore, user]
+  );
+  const { data: allLots, isLoading: isLoadingAllLots } = useCollection<Lot>(allLotsQuery);
+
+  // Query for user-specific lots for farmers
+  const userLotsQuery = useMemoFirebase(
+    () => user?.role === 'farmer' ? collection(firestore, 'users', user.id, 'lots') : null,
+    [firestore, user]
+  );
+  const { data: userLots, isLoading: isLoadingUserLots } = useCollection<Lot>(userLotsQuery);
+
+  const addLot = async (lotData: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => {
+    if (!user || user.role !== 'farmer') return;
+
+    const newLot: Omit<Lot, 'id'> = {
+      ...lotData,
+      farmerId: user.id,
+      farmerName: user.name,
+      status: 'available',
+      harvestDate: lotData.harvestDate.toString(), // Ensure date is a string
+    };
+
+    const lotsCollection = collection(firestore, 'users', user.id, 'lots');
+    await addDoc(lotsCollection, newLot);
+  };
+
+  const updateLot = async (lotId: string, updatedLotData: Partial<Lot>) => {
+    if (!user) return; // In a real app, you'd check ownership more robustly with security rules
+
+    // This is a simplified update. A real implementation needs to find the correct lot across all users if needed.
+    // For now, we assume a farmer is updating their own lot.
+    if(user.role === 'farmer') {
+        const lotRef = doc(firestore, 'users', user.id, 'lots', lotId);
+        await updateDoc(lotRef, updatedLotData);
     }
-  }, []);
-
-  const updateLocalStorage = (updatedLots: Lot[]) => {
-    localStorage.setItem('biotrazo-lots', serializeLots(updatedLots));
-  };
-  
-  const addLot = (lot: Lot) => {
-    setLots(prevLots => {
-      // Convert harvestDate to string before adding
-      const newLot = { ...lot, harvestDate: lot.harvestDate.toString() };
-      const newLots = [newLot, ...prevLots];
-      updateLocalStorage(newLots);
-      return newLots;
-    });
   };
 
-  const updateLot = (lotId: string, updatedLotData: Partial<Lot>) => {
-    setLots(prevLots => {
-        const newLots = prevLots.map(lot => 
-            lot.id === lotId ? { ...lot, ...updatedLotData } : lot
-        );
-        updateLocalStorage(newLots);
-        return newLots;
-    });
-  };
+  const lots = useMemo(() => {
+    if (user?.role === 'buyer') return allLots || [];
+    if (user?.role === 'farmer') return userLots || [];
+    return [];
+  }, [user, allLots, userLots]);
 
-  const value = { lots, addLot, updateLot };
+  const value = { 
+    lots, 
+    addLot, 
+    updateLot, 
+    userLots: userLots || [], 
+    isLoading: user?.role === 'buyer' ? isLoadingAllLots : isLoadingUserLots 
+  };
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
 }

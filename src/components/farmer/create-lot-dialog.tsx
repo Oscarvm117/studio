@@ -56,9 +56,7 @@ const lotSchema = z.object({
 });
 
 interface CreateLotDialogProps {
-  onLotCreated: (newLot: Lot) => void;
-  farmerId: string;
-  farmerName: string;
+  onLotCreated: (newLot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => void;
 }
 
 const getLotImage = (productType: string) => {
@@ -75,7 +73,7 @@ const getLotImage = (productType: string) => {
     };
 }
 
-export function CreateLotDialog({ onLotCreated, farmerId, farmerName }: CreateLotDialogProps) {
+export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -91,19 +89,15 @@ export function CreateLotDialog({ onLotCreated, farmerId, farmerName }: CreateLo
     },
   });
 
-  function onSubmit(values: z.infer<typeof lotSchema>) {
-    const newLot: Lot = {
-      id: `lot-${Date.now()}`,
-      farmerId,
-      farmerName,
-      status: 'available',
+  async function onSubmit(values: z.infer<typeof lotSchema>) {
+    const newLotData = {
       image: getLotImage(values.productType),
       ...values,
     };
-    onLotCreated(newLot);
+    await onLotCreated(newLotData);
     toast({
         title: '¡Lote Creado!',
-        description: `El lote de ${newLot.productType} ha sido agregado al mercado.`,
+        description: `El lote de ${values.productType} ha sido agregado al mercado.`,
     });
     setOpen(false);
     form.reset();
