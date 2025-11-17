@@ -55,7 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser, isUserLoading, firestore, auth, user]);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        // Re-throw the error to be caught by the calling form
+        throw error;
+    }
   };
 
   const logout = () => {
@@ -66,18 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUser = userCredential.user;
-    
-    const userForDb: User = {
-      id: newUser.uid,
-      name,
-      email: newUser.email!,
-      role,
-    };
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+      
+      const userForDb: User = {
+        id: newUser.uid,
+        name,
+        email: newUser.email!,
+        role,
+      };
 
-    await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
-    setUser(userForDb);
+      await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
+      setUser(userForDb);
+    } catch (error) {
+        throw error;
+    }
   };
 
   const value = {
