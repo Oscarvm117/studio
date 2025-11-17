@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { initialLots } from '@/lib/data';
 import type { Lot } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { BuyerLotCard } from './lot-card';
 import { Search } from 'lucide-react';
+import { useLots } from '@/contexts/lot-context';
 
 export function Marketplace() {
   const [searchTerm, setSearchTerm] = useState('');
-  const availableLots = initialLots.filter(lot => lot.status === 'available');
+  const { lots } = useLots();
+  const availableLots = lots.filter(lot => lot.status === 'available');
 
   const filteredLots = useMemo(() => {
     if (!searchTerm) return availableLots;

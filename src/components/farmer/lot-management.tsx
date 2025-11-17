@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { initialLots } from '@/lib/data';
 import type { Lot } from '@/lib/types';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { CreateLotDialog } from './create-lot-dialog';
 import { DashboardStats } from './dashboard-stats';
+import { useLots } from '@/contexts/lot-context';
 
 function LotCard({ lot }: { lot: Lot }) {
   return (
@@ -29,8 +30,8 @@ function LotCard({ lot }: { lot: Lot }) {
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
         <p><strong>Cantidad:</strong> {lot.quantity} {lot.unit}</p>
-        <p><strong>Precio/kg:</strong> ${lot.pricePerKg.toLocaleString('es-CO')} COP</p>
-        <p><strong>Cosecha:</strong> {lot.harvestDate.toLocaleDateString('es-CO')}</p>
+        <p><strong>Precio/{lot.unit}:</strong> ${lot.pricePerKg.toLocaleString('es-CO')} COP</p>
+        <p><strong>Cosecha:</strong> {new Date(lot.harvestDate).toLocaleDateString('es-CO')}</p>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-1">
         {lot.certifications.map(cert => (
@@ -42,13 +43,13 @@ function LotCard({ lot }: { lot: Lot }) {
 }
 
 export function LotManagement() {
-  const [lots, setLots] = useState<Lot[]>(initialLots);
   const { user } = useAuth();
+  const { lots, addLot } = useLots();
   
   if (!user) return null;
 
   const handleLotCreated = (newLot: Lot) => {
-    setLots(prevLots => [newLot, ...prevLots]);
+    addLot(newLot);
   };
 
   const userLots = lots.filter(lot => lot.farmerId === user.id);

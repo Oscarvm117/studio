@@ -43,6 +43,7 @@ import { units, certifications } from '@/lib/types';
 import type { Lot } from '@/lib/types';
 import { CertificationPicker } from './certification-picker';
 import { useToast } from '@/hooks/use-toast';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const lotSchema = z.object({
   productType: z.string().min(1, 'El tipo de producto es requerido.'),
@@ -58,6 +59,20 @@ interface CreateLotDialogProps {
   onLotCreated: (newLot: Lot) => void;
   farmerId: string;
   farmerName: string;
+}
+
+const getLotImage = (productType: string) => {
+    const hint = productType.toLowerCase();
+    const found = PlaceHolderImages.find(img => hint.includes(img.id.toLowerCase()));
+    if (found) {
+        return { url: found.imageUrl, hint: found.imageHint };
+    }
+    // Default to a generic field image if no specific one is found
+    const fieldImage = PlaceHolderImages.find(img => img.id === 'lettuce');
+    return { 
+        url: fieldImage?.imageUrl || PlaceHolderImages[0].imageUrl, 
+        hint: fieldImage?.imageHint || 'field crop'
+    };
 }
 
 export function CreateLotDialog({ onLotCreated, farmerId, farmerName }: CreateLotDialogProps) {
@@ -82,7 +97,7 @@ export function CreateLotDialog({ onLotCreated, farmerId, farmerName }: CreateLo
       farmerId,
       farmerName,
       status: 'available',
-      image: { url: 'https://picsum.photos/seed/new/600/400', hint: 'new product' },
+      image: getLotImage(values.productType),
       ...values,
     };
     onLotCreated(newLot);

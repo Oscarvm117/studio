@@ -52,7 +52,7 @@ export function BuyerLotCard({ lot }: LotCardProps) {
       </CardHeader>
       <CardContent className="flex-grow space-y-2 text-sm">
         <p><strong>Disponibles:</strong> {lot.quantity} {lot.unit}</p>
-        <p><strong>Cosecha:</strong> {lot.harvestDate.toLocaleDateString('es-CO')}</p>
+        <p><strong>Cosecha:</strong> {new Date(lot.harvestDate).toLocaleDateString('es-CO')}</p>
         <div className="flex flex-wrap gap-1 pt-2">
             {lot.certifications.map(cert => (
             <Badge key={cert} variant="outline" className="border-primary/50 text-primary">{cert}</Badge>
