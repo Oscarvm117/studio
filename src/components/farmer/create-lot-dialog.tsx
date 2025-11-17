@@ -71,7 +71,7 @@ const getLotImage = (productType: string) => {
         url: fieldImage?.imageUrl || PlaceHolderImages[0].imageUrl, 
         hint: fieldImage?.imageHint || 'field crop'
     };
-}
+};
 
 export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
   const [open, setOpen] = useState(false);
