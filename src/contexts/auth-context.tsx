@@ -18,7 +18,7 @@ interface AuthContextType {
   isAuthLoading: boolean;
   login: (email: string, password: string) => void;
   logout: () => void;
-  register: (name: string, email: string, password: string, role: Role) => void;
+  register: (name: string, email: string, password: string, role: Role) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,7 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Let the useEffect handle the redirect
     } catch (error) {
       console.error('Registration failed:', error);
-      // Handle error with a toast or message
+      // Re-throw the error so the form can catch it and display a toast
+      throw error;
     }
   };
 
