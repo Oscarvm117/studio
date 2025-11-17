@@ -38,9 +38,11 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       await login(values.email, values.password);
+      // On success, the AuthProvider's useEffect will handle redirection
     } catch (error: any) {
-      let description = "No se pudo iniciar sesión. Por favor, revisa tus credenciales.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      let description = "No se pudo iniciar sesión. Por favor, verifica tus credenciales.";
+      // Catch specific Firebase auth errors for better user feedback
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
         description = "El correo electrónico o la contraseña son incorrectos.";
       }
       toast({
