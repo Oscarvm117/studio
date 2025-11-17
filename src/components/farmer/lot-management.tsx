@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CreateLotDialog } from './create-lot-dialog';
+import { DashboardStats } from './dashboard-stats';
 
 function LotCard({ lot }: { lot: Lot }) {
   return (
@@ -50,39 +51,44 @@ export function LotManagement() {
     setLots(prevLots => [newLot, ...prevLots]);
   };
 
-  const availableLots = lots.filter(lot => lot.status === 'available');
-  const soldLots = lots.filter(lot => lot.status === 'sold');
+  const userLots = lots.filter(lot => lot.farmerId === user.id);
+  const availableLots = userLots.filter(lot => lot.status === 'available');
+  const soldLots = userLots.filter(lot => lot.status === 'sold');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Mis Lotes</h2>
-        <CreateLotDialog onLotCreated={handleLotCreated} farmerId={user.id} farmerName={user.name} />
+    <div className="space-y-8">
+      <DashboardStats lots={userLots} />
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">Mis Lotes</h2>
+          <CreateLotDialog onLotCreated={handleLotCreated} farmerId={user.id} farmerName={user.name} />
+        </div>
+        <Tabs defaultValue="available">
+          <TabsList>
+            <TabsTrigger value="available">Lotes Disponibles</TabsTrigger>
+            <TabsTrigger value="sold">Lotes Vendidos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="available">
+            {availableLots.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {availableLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
+              </div>
+            ) : (
+              <p className="mt-4 text-muted-foreground">No tienes lotes disponibles en este momento.</p>
+            )}
+          </TabsContent>
+          <TabsContent value="sold">
+            {soldLots.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {soldLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
+              </div>
+            ) : (
+              <p className="mt-4 text-muted-foreground">No has vendido ningún lote todavía.</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
-      <Tabs defaultValue="available">
-        <TabsList>
-          <TabsTrigger value="available">Lotes Disponibles</TabsTrigger>
-          <TabsTrigger value="sold">Lotes Vendidos</TabsTrigger>
-        </TabsList>
-        <TabsContent value="available">
-          {availableLots.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {availableLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
-            </div>
-          ) : (
-            <p className="mt-4 text-muted-foreground">No tienes lotes disponibles en este momento.</p>
-          )}
-        </TabsContent>
-        <TabsContent value="sold">
-          {soldLots.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {soldLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
-            </div>
-          ) : (
-            <p className="mt-4 text-muted-foreground">No has vendido ningún lote todavía.</p>
-          )}
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
