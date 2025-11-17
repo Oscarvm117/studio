@@ -39,10 +39,14 @@ export function LoginForm() {
     try {
       await login(values.email, values.password);
     } catch (error: any) {
+      let description = "No se pudo iniciar sesión. Por favor, revisa tus credenciales.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        description = "El correo electrónico o la contraseña son incorrectos.";
+      }
       toast({
         variant: "destructive",
         title: "Error al iniciar sesión",
-        description: error.message || "No se pudo iniciar sesión. Por favor, revisa tus credenciales.",
+        description: description,
       });
     }
   }
