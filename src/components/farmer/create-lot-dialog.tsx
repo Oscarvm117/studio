@@ -94,7 +94,7 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
       image: getLotImage(values.productType),
       ...values,
     };
-    await onLotCreated(newLotData);
+    onLotCreated(newLotData);
     toast({
         title: '¡Lote Creado!',
         description: `El lote de ${values.productType} ha sido agregado al mercado.`,
@@ -156,7 +156,7 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una unidad" />
-                        </SelectTrigger>
+                        </Trigger>
                       </FormControl>
                       <SelectContent>
                         {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
