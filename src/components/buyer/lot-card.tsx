@@ -3,22 +3,25 @@ import type { Lot } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShoppingBasket } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/contexts/cart-context';
 
 interface LotCardProps {
   lot: Lot;
 }
 
 export function BuyerLotCard({ lot }: LotCardProps) {
-    const { toast } = useToast();
+  const { toast } = useToast();
+  const { addToCart } = useCart();
 
-    const handleBuy = () => {
-        toast({
-            title: '¡Compra Exitosa!',
-            description: `Has comprado el lote de ${lot.productType} de ${lot.farmerName}.`,
-        });
-    }
+  const handleAddToCart = () => {
+    addToCart(lot);
+    toast({
+      title: '¡Producto añadido!',
+      description: `${lot.productType} ha sido añadido a tu carrito.`,
+    });
+  }
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
@@ -57,9 +60,9 @@ export function BuyerLotCard({ lot }: LotCardProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleBuy}>
-          <ShoppingBasket className="mr-2 h-4 w-4" />
-          Comprar
+        <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleAddToCart}>
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          Agregar al Carrito
         </Button>
       </CardFooter>
     </Card>
