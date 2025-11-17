@@ -3,8 +3,7 @@
 import { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Lot } from '@/lib/types';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, collectionGroup, where, query } from 'firebase/firestore';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, collectionGroup, where, query, addDoc } from 'firebase/firestore';
 
 interface LotContextType {
   lots: Lot[];
@@ -34,7 +33,9 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const { data: userLotsData, isLoading: isLoadingUserLots } = useCollection<Lot>(userLotsQuery);
 
   const addLot = async (lotData: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => {
-    if (!user || user.role !== 'farmer') return;
+    if (!user || user.role !== 'farmer') {
+      throw new Error("Usuario no autorizado para crear lotes.");
+    }
 
     const newLot: Omit<Lot, 'id'> = {
       ...lotData,
@@ -45,7 +46,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
     };
 
     const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-    addDocumentNonBlocking(lotsCollection, newLot);
+    await addDoc(lotsCollection, newLot);
   };
 
   const value = useMemo(() => {
@@ -53,7 +54,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
     const lotsForFarmer = userLotsData || [];
     
     return {
-      lots: user?.role === 'buyer' ? lotsForBuyer : lotsForFarmer,
+      lots: lotsForBuyer,
       addLot,
       userLots: lotsForFarmer,
       isLoading: user?.role === 'buyer' ? isLoadingAllLots : isLoadingUserLots,

@@ -36,7 +36,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { units, certifications } from '@/lib/types';
@@ -56,11 +56,12 @@ const lotSchema = z.object({
 });
 
 interface CreateLotDialogProps {
-  onLotCreated: (newLot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => void;
+  onLotCreated: (newLot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
 }
 
 export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const getLotImage = (productType: string) => {
@@ -69,7 +70,6 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
     if (found) {
         return { url: found.imageUrl, hint: found.imageHint };
     }
-    // Default to a generic field image if no specific one is found
     const fieldImage = PlaceHolderImages.find(img => img.id === 'lettuce');
     return { 
         url: fieldImage?.imageUrl || PlaceHolderImages[0].imageUrl, 
@@ -90,21 +90,39 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
   });
 
   async function onSubmit(values: z.infer<typeof lotSchema>) {
+    setIsSubmitting(true);
     const newLotData = {
       image: getLotImage(values.productType),
       ...values,
     };
-    onLotCreated(newLotData);
-    toast({
-        title: '¡Lote Creado!',
-        description: `El lote de ${values.productType} ha sido agregado al mercado.`,
-    });
-    setOpen(false);
-    form.reset();
+
+    try {
+        await onLotCreated(newLotData);
+        toast({
+            title: '¡Lote Creado!',
+            description: `El lote de ${values.productType} ha sido agregado al mercado.`,
+        });
+        setOpen(false);
+        form.reset();
+    } catch (error: any) {
+        console.error("Error creating lot: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error al crear el lote',
+            description: error.message || 'No se pudo crear el lote. Por favor, intenta de nuevo.',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+        if (!isSubmitting) {
+            setOpen(isOpen);
+            if (!isOpen) form.reset();
+        }
+    }}>
       <DialogTrigger asChild>
         <Button className="bg-accent text-accent-foreground hover:bg-accent/90">Crear Lote</Button>
       </DialogTrigger>
@@ -240,7 +258,10 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
             <CertificationPicker control={form.control} />
 
             <DialogFooter>
-              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">Aceptar</Button>
+              <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Aceptar
+              </Button>
             </DialogFooter>
           </form>
         </Form>
