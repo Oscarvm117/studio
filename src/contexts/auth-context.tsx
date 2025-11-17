@@ -55,13 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser, isUserLoading, firestore, auth, user]);
 
   const login = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle the user state update and redirect
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error; // Re-throw to be caught by the form
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = () => {
@@ -72,25 +66,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-      
-      const userForDb: User = {
-        id: newUser.uid,
-        name,
-        email: newUser.email!,
-        role,
-      };
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser = userCredential.user;
+    
+    const userForDb: User = {
+      id: newUser.uid,
+      name,
+      email: newUser.email!,
+      role,
+    };
 
-      await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
-      setUser(userForDb);
-      // Let the useEffect handle the redirect
-    } catch (error) {
-      console.error('Registration failed:', error);
-      // Re-throw the error so the form can catch it and display a toast
-      throw error;
-    }
+    await setDoc(doc(firestore, 'users', newUser.uid), userForDb);
+    setUser(userForDb);
   };
 
   const value = {

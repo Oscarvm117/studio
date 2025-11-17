@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useMemo } fr
 import type { Lot } from '@/lib/types';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, collectionGroup, addDoc, doc, updateDoc, where, query } from 'firebase/firestore';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface LotContextType {
   lots: Lot[];
@@ -45,7 +46,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
     };
 
     const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-    await addDoc(lotsCollection, newLot);
+    addDocumentNonBlocking(lotsCollection, newLot);
   };
 
   const updateLot = async (lotId: string, updatedLotData: Partial<Lot>) => {

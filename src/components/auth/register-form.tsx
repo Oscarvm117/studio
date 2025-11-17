@@ -45,10 +45,14 @@ export function RegisterForm() {
     try {
       await register(values.name, values.email, values.password, values.role as Role);
     } catch (error: any) {
+        let description = "No se pudo crear la cuenta.";
+        if (error.code === 'auth/email-already-in-use') {
+            description = "Este correo electrónico ya está en uso.";
+        }
       toast({
         variant: "destructive",
         title: "Error al registrar",
-        description: error.message || "No se pudo crear la cuenta.",
+        description: description,
       });
     }
   }
