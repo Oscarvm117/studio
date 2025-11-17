@@ -10,7 +10,7 @@
           "type": "string",
           "description": "Unique identifier for the User entity."
         },
-        "userType": {
+        "role": {
           "type": "string",
           "description": "The type of user: 'farmer' or 'buyer'."
         },
@@ -19,21 +19,16 @@
           "description": "User's email address.",
           "format": "email"
         },
-        "firstName": {
+        "name": {
           "type": "string",
-          "description": "User's first name."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "User's last name."
+          "description": "User's full name."
         }
       },
       "required": [
         "id",
-        "userType",
+        "role",
         "email",
-        "firstName",
-        "lastName"
+        "name"
       ]
     },
     "FarmerDashboard": {
