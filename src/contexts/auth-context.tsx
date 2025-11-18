@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return userSnap.exists() ? (userSnap.data() as User) : null;
   }, [firestore]);
 
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -45,15 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (appUser) {
             setUser(appUser);
           } else {
-             // This could happen if the user exists in Auth but not Firestore.
-             // For safety, sign them out.
+            // This could happen if the user exists in Auth but not Firestore.
+            // For safety, sign them out.
             await auth.signOut();
             setUser(null);
           }
         } catch (error) {
-            console.error("Error fetching user document:", error);
-            await auth.signOut();
-            setUser(null);
+          console.error("Error fetching user document:", error);
+          await auth.signOut();
+          setUser(null);
         }
       } else {
         // User is signed out.
@@ -67,34 +66,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth, fetchUserDocument]);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
-    // The onAuthStateChanged listener will handle fetching user data and state updates.
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Fetch user document to get role
+      const appUser = await fetchUserDocument(firebaseUser);
+      
+      if (appUser) {
+        setUser(appUser);
+        
+        // Redirect based on role
+        if (appUser.role === 'farmer') {
+          router.push('/farmer');
+        } else if (appUser.role === 'buyer') {
+          router.push('/buyer');
+        }
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {
     await auth.signOut();
-    // The onAuthStateChanged listener handles setting user to null.
+    setUser(null);
     router.push('/login');
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUser = userCredential.user;
-    
-    const userForDb: User = {
-      id: newUser.uid,
-      name,
-      email: newUser.email!,
-      role,
-    };
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+      
+      const userForDb: User = {
+        id: newUser.uid,
+        name,
+        email: newUser.email!,
+        role,
+      };
 
-    const userDocRef = doc(firestore, 'users', newUser.uid);
-    // Wait for the document to be created before proceeding.
-    await setDoc(userDocRef, userForDb);
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      // Wait for the document to be created before proceeding.
+      await setDoc(userDocRef, userForDb);
 
-    // Manually set the user in state to ensure the UI updates immediately,
-    // which triggers the redirection logic in page.tsx.
-    setUser(userForDb);
+      // Set the user in state
+      setUser(userForDb);
+
+      // Redirect based on role
+      if (role === 'farmer') {
+        router.push('/farmer');
+      } else if (role === 'buyer') {
+        router.push('/buyer');
+      }
+    } catch (error) {
+      console.error("Error during registration:", error);
+      throw error;
+    }
   };
 
   const value = {
