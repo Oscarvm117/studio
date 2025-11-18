@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, ReactNode, useCallback, useEffect, useState } from 'react';
 import type { Lot } from '@/lib/types';
 import { useFirebase } from '@/firebase';
 import { collection, collectionGroup, query, addDoc, onSnapshot, where } from 'firebase/firestore';
@@ -8,9 +8,9 @@ import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
 interface LotContextType {
-  lots: Lot[];
+  lots: Lot[]; // For buyers: all available lots
+  userLots: Lot[]; // For farmers: their own lots
   addLot: (lot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
-  userLots: Lot[];
   isLoading: boolean;
   error: Error | null;
 }
@@ -19,110 +19,86 @@ const LotContext = createContext<LotContextType | undefined>(undefined);
 
 export function LotProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
-  const { user, isAuthLoading } = useAuth(); // Use isAuthLoading
-  
+  const { user, isAuthLoading } = useAuth();
+
   const [allLots, setAllLots] = useState<Lot[]>([]);
   const [userLots, setUserLots] = useState<Lot[]>([]);
-  const [isLoadingLots, setIsLoadingLots] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Effect for all lots (for buyers and general marketplace view)
   useEffect(() => {
-    // Wait until auth state is fully resolved
+    // Don't run any queries until the auth state is fully resolved
     if (isAuthLoading) {
-      setIsLoadingLots(true);
+      setIsLoading(true);
       return;
     }
 
-    // This query is for all available lots, useful for buyers or a public marketplace.
-    // Only run if there's no user or if the user is a buyer.
-    if (user?.role !== 'buyer') {
+    setIsLoading(true);
+    let unsubscribe: () => void = () => {};
+
+    if (user?.role === 'buyer') {
+      // Buyer: Fetch all available lots from the collection group
+      const lotsQuery: Query<DocumentData> = query(
+        collectionGroup(firestore, 'lots'),
+        where('status', '==', 'available')
+      );
+
+      unsubscribe = onSnapshot(
+        lotsQuery,
+        (snapshot) => {
+          const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as Lot));
+          setAllLots(fetchedLots);
+          setUserLots([]); // Clear farmer-specific lots
+          setIsLoading(false);
+          setError(null);
+        },
+        (err) => {
+          console.error('Error fetching lots for buyer:', err);
+          setError(err as Error);
+          setIsLoading(false);
+        }
+      );
+    } else if (user?.role === 'farmer') {
+      // Farmer: Fetch only their own lots
+      const userLotsCollection = collection(firestore, 'users', user.id, 'lots');
+      
+      unsubscribe = onSnapshot(
+        userLotsCollection,
+        (snapshot) => {
+          const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as Lot));
+          setUserLots(fetchedLots);
+          setAllLots([]); // Clear marketplace lots
+          setIsLoading(false);
+          setError(null);
+        },
+        (err) => {
+          console.error('Error fetching lots for farmer:', err);
+          setError(err as Error);
+          setIsLoading(false);
+        }
+      );
+    } else {
+      // No user or unknown role, not loading anything.
       setAllLots([]);
-      if (user?.role !== 'farmer') {
-        setIsLoadingLots(false);
-      }
-      return;
-    }
-
-    setIsLoadingLots(true);
-    setError(null);
-
-    const lotsQuery: Query<DocumentData> = query(
-      collectionGroup(firestore, 'lots'),
-      where('status', '==', 'available')
-    );
-
-    const unsubscribe = onSnapshot(
-      lotsQuery,
-      (snapshot) => {
-        const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        } as Lot));
-        setAllLots(fetchedLots);
-        setIsLoadingLots(false);
-      },
-      (err) => {
-        console.error('Error fetching lots for buyer:', err);
-        setError(err as Error);
-        setIsLoadingLots(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [firestore, user, isAuthLoading]);
-
-
-  // Effect for a farmer's own lots
-  useEffect(() => { 
-    // Wait until auth state is fully resolved
-    if (isAuthLoading) {
-      setIsLoadingLots(true);
-      return;
-    }
-    
-    // Only run this for farmers
-    if (user?.role !== 'farmer') {
       setUserLots([]);
-      if (user?.role !== 'buyer') {
-        setIsLoadingLots(false);
-      }
-      return;
+      setIsLoading(false);
     }
 
-    setIsLoadingLots(true);
-    setError(null);
-
-    const userLotsCollection = collection(firestore, 'users', user.id, 'lots');
-
-    const unsubscribe = onSnapshot(
-      userLotsCollection,
-      (snapshot) => {
-        const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        } as Lot));
-        setUserLots(fetchedLots);
-        setIsLoadingLots(false);
-      },
-      (err) => {
-        console.error('Error fetching lots for farmer:', err);
-        setError(err as Error);
-        setIsLoadingLots(false);
-      }
-    );
-
+    // Cleanup the subscription when the component unmounts or dependencies change
     return () => unsubscribe();
   }, [firestore, user, isAuthLoading]);
 
   const addLot = useCallback(async (lotData: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => {
-    if (!user) {
-      throw new Error("Debes iniciar sesión para crear lotes.");
+    if (!user || user.role !== 'farmer') {
+      throw new Error("Usuario no autorizado para crear lotes.");
     }
-    if (user.role !== 'farmer') {
-      throw new Error("Solo los agricultores pueden crear lotes.");
-    }
-  
+
     const newLot: Omit<Lot, 'id'> = {
       ...lotData,
       farmerId: user.id,
@@ -134,15 +110,16 @@ export function LotProvider({ children }: { children: ReactNode }) {
     };
   
     const lotsCollection = collection(firestore, 'users', user.id, 'lots');
+    // Using await here to be able to catch and throw errors to the calling component
     await addDoc(lotsCollection, newLot);
   }, [user, firestore]);
 
   const value = {
-    lots: user?.role === 'buyer' ? allLots : [],
-    userLots: user?.role === 'farmer' ? userLots : [],
+    lots: allLots,
+    userLots: userLots,
     addLot,
-    isLoading: isLoadingLots,
-    error
+    isLoading,
+    error,
   };
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;
