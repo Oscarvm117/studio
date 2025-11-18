@@ -27,11 +27,9 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // This effect handles subscribing to the correct lot data based on user role.
     let unsubscribe: () => void = () => {};
 
     if (isAuthLoading) {
-      // Don't do anything while auth state is resolving.
       setIsLoadingLots(true);
       return;
     }
@@ -41,7 +39,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
     try {
       if (user?.role === 'buyer') {
-        // For buyers, query all available lots across all farmers.
         const lotsQuery: Query<DocumentData> = query(
           collectionGroup(firestore, 'lots')
         );
@@ -49,18 +46,18 @@ export function LotProvider({ children }: { children: ReactNode }) {
           const fetchedLots: Lot[] = snapshot.docs
             .map((doc) => {
               const data = doc.data();
-              // The harvestDate from Firestore is a Timestamp object
-              const harvestDate = (data.harvestDate as Timestamp).toDate();
+              // data.harvestDate is a string, convert it to a Date object.
+              const harvestDate = new Date(data.harvestDate);
               return {
                 id: doc.id,
                 ...data,
                 harvestDate,
               } as Lot;
             })
-            .filter(lot => lot.status === 'available'); // Filter for available lots on the client-side
+            .filter(lot => lot.status === 'available');
 
           setAllLots(fetchedLots);
-          setUserLots([]); // Buyers don't have 'userLots'
+          setUserLots([]);
           setIsLoadingLots(false);
         }, (err) => {
           console.error('Error fetching lots for buyer:', err);
@@ -69,13 +66,12 @@ export function LotProvider({ children }: { children: ReactNode }) {
         });
 
       } else if (user?.role === 'farmer') {
-        // For farmers, query only their own lots.
         const userLotsCollection = collection(firestore, 'users', user.id, 'lots');
         unsubscribe = onSnapshot(userLotsCollection, (snapshot) => {
           const fetchedLots: Lot[] = snapshot.docs.map((doc) => {
              const data = doc.data();
-             // The harvestDate from Firestore is a Timestamp object
-             const harvestDate = (data.harvestDate as Timestamp).toDate();
+             // data.harvestDate is a string, convert it to a Date object.
+             const harvestDate = new Date(data.harvestDate);
              return {
                 id: doc.id,
                 ...data,
@@ -83,7 +79,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
              } as Lot;
           });
           setUserLots(fetchedLots);
-          setAllLots([]); // Farmers don't see all lots in their dashboard
+          setAllLots([]);
           setIsLoadingLots(false);
         }, (err) => {
           console.error('Error fetching lots for farmer:', err);
@@ -92,7 +88,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
         });
 
       } else {
-        // No user or role, so clear all data.
         setAllLots([]);
         setUserLots([]);
         setIsLoadingLots(false);
@@ -116,14 +111,12 @@ export function LotProvider({ children }: { children: ReactNode }) {
       throw new Error("Solo los agricultores pueden crear lotes.");
     }
 
-    // The form provides a Date object, which is fine for Firestore `addDoc`.
-    // Firestore will convert it to a Timestamp automatically.
     const newLotData = {
       ...lotData,
       farmerId: user.id,
       farmerName: user.name,
       status: 'available' as 'available' | 'sold',
-      harvestDate: lotData.harvestDate, // Pass the Date object directly
+      harvestDate: lotData.harvestDate.toISOString(),
     };
 
     try {
@@ -131,7 +124,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
       await addDoc(lotsCollection, newLotData);
     } catch (error: any) {
       console.error("Error creating lot in Firestore:", error);
-      // Let the UI handle this with a toast
       throw error;
     }
   };
