@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import type { Lot } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
@@ -10,8 +10,20 @@ import { Badge } from '@/components/ui/badge';
 import { CreateLotDialog } from './create-lot-dialog';
 import { DashboardStats } from './dashboard-stats';
 import { useLots } from '@/contexts/lot-context';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { QRCodeCanvas } from 'qrcode.react';
+import { QrCode } from 'lucide-react';
 
 function LotCard({ lot }: { lot: Lot }) {
+  const lotInfo = `
+Producto: ${lot.productType}
+Cantidad: ${lot.quantity} ${lot.unit}
+Cosecha: ${new Date(lot.harvestDate).toLocaleDateString('es-CO')}
+Ubicación: ${lot.location}
+Agricultor: ${lot.farmerName}
+  `.trim();
+
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
       <div className="relative h-40 w-full">
@@ -32,10 +44,30 @@ function LotCard({ lot }: { lot: Lot }) {
         <p><strong>Precio/{lot.unit === 'docena' ? 'doc' : lot.unit}:</strong> ${lot.pricePerKg.toLocaleString('es-CO')} COP</p>
         <p><strong>Cosecha:</strong> {new Date(lot.harvestDate).toLocaleDateString('es-CO')}</p>
       </CardContent>
-      <CardFooter className="flex flex-wrap gap-1">
-        {lot.certifications.map(cert => (
-          <Badge key={cert} variant="secondary" className="bg-accent/20 text-accent-foreground">{cert}</Badge>
-        ))}
+      <CardFooter className="flex flex-wrap gap-1 justify-between items-center">
+        <div className="flex flex-wrap gap-1">
+          {lot.certifications.map(cert => (
+            <Badge key={cert} variant="secondary" className="bg-accent/20 text-accent-foreground">{cert}</Badge>
+          ))}
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="default" size="icon">
+              <QrCode className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Información del Lote</DialogTitle>
+              <DialogDescription>
+                Este código QR contiene los detalles básicos del lote.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-center p-4">
+              <QRCodeCanvas value={lotInfo} size={256} />
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   );
