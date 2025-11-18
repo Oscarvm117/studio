@@ -26,6 +26,19 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+    
+    // Helper function to check which fields are being updated
+    function isUpdatingFields(fields) {
+      return request.resource.data.keys().hasAll(fields) && request.resource.data.keys().size() == fields.size();
+    }
+    
+    function isChangingOnlyStatusToSold() {
+      // Allow update if only the 'status' field is being changed to 'sold'
+      // and no other fields are being modified.
+      let otherFields = request.resource.data.diff(resource.data).affectedKeys();
+      return otherFields.size() == 1 && otherFields.has('status') && request.resource.data.status == 'sold';
+    }
+
 
     /**
      * @description Secures user profiles, ensuring only the user can manage their own data.
@@ -59,11 +72,12 @@ service cloud.firestore {
       }
 
       /**
-       * @description Secures lot data for farmers. Farmers can manage their lots. Buyers can read them.
+       * @description Secures lot data for farmers. Farmers can manage their lots. Buyers can read them and mark them as sold.
        * @path /users/{userId}/lots/{lotId}
-       * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own lot with ID 'lot456' when authenticated as 'farmer123'.
-       * @deny (create, update, delete) - User with ID 'user456' (buyer) cannot create/update/delete the lot 'lot456' belonging to 'farmer123'.
-       * @principle Enforces document ownership and validates relational integrity.
+       * @allow (create, delete, get) - User with ID 'farmer123' can create/delete/get their own lot with ID 'lot456' when authenticated as 'farmer123'.
+       * @allow (update) - A buyer can update a lot to mark it as sold. The farmer can update any field.
+       * @deny (create, update, delete) - User with ID 'user456' (buyer) cannot create/delete or perform general updates on the lot 'lot456' belonging to 'farmer123'.
+       * @principle Enforces document ownership and validates relational integrity, with a specific exception for purchases.
        */
       match /lots/{lotId} {
         // Anyone signed in can read a lot (buyers and farmers)
@@ -71,10 +85,15 @@ service cloud.firestore {
         // Farmers can list their own lots. Buyers use the collection group query below.
         allow list: if isOwner(userId);
 
-        // Only the owner (farmer) can create, update, delete their lots
+        // Only the owner (farmer) can create or delete their lots
         allow create: if isOwner(userId) && request.resource.data.farmerId == userId;
-        allow update: if isOwner(userId) && resource.data.farmerId == request.resource.data.farmerId && resource != null;
         allow delete: if isOwner(userId) && resource != null;
+        
+        // Update logic:
+        // 1. The owner (farmer) can update their own lot.
+        // 2. Any authenticated user (a buyer) can update a lot ONLY to mark it as 'sold'.
+        allow update: if (isOwner(userId) && resource.data.farmerId == request.resource.data.farmerId) ||
+                         (isSignedIn() && isChangingOnlyStatusToSold());
       }
     }
     
@@ -82,9 +101,8 @@ service cloud.firestore {
      * @description Collection group rule for querying across all 'lots' subcollections.
      * This allows buyers to view all available lots from any farmer in a single query.
      * @path /{path=**}/lots/{lotId}
-     * @allow list - Any authenticated user (buyer or farmer) can perform a 'list' operation,
-     * which is necessary for browsing the marketplace. The query in the app must include
-     * `where('status', '==', 'available')` to be allowed.
+     * @allow list - Any authenticated user (buyer or farmer) can perform a 'list' operation.
+     * The app client-side logic should filter for `status == 'available'`.
      */
     match /{path=**}/lots/{lotId} {
         allow list: if isSignedIn();
