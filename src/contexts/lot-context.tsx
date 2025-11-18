@@ -23,10 +23,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const allLotsQuery = useMemoFirebase(
     () => {
       // Wait until auth is resolved and we have a user with a role
-      if (isAuthLoading || !user) return null;
-      return user.role === 'buyer' ? query(collectionGroup(firestore, 'lots'), where('status', '==', 'available')) : null;
+      if (isAuthLoading || !user || user.role !== 'buyer') return null;
+      return query(collectionGroup(firestore, 'lots'), where('status', '==', 'available'));
     },
-    [firestore, user, isAuthLoading] // Add isAuthLoading to dependencies
+    [firestore, user, isAuthLoading] // Add isAuthLoading and user role check to dependencies
   );
   const { data: allLotsData, isLoading: isLoadingAllLots } = useCollection<Lot>(allLotsQuery);
 
@@ -34,10 +34,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const userLotsQuery = useMemoFirebase(
     () => {
       // Wait until auth is resolved and we have a user with a role
-      if (isAuthLoading || !user) return null;
-      return user.role === 'farmer' ? collection(firestore, 'users', user.id, 'lots') : null;
+      if (isAuthLoading || !user || user.role !== 'farmer') return null;
+      return collection(firestore, 'users', user.id, 'lots');
     },
-    [firestore, user, isAuthLoading] // Add isAuthLoading to dependencies
+    [firestore, user, isAuthLoading] // Add isAuthLoading and user role check to dependencies
   );
   const { data: userLotsData, isLoading: isLoadingUserLots } = useCollection<Lot>(userLotsQuery);
 
@@ -70,8 +70,9 @@ export function LotProvider({ children }: { children: ReactNode }) {
     // Determine the loading state based on auth status and role-specific loading
     const isLoading = isAuthLoading || (user?.role === 'buyer' ? isLoadingAllLots : isLoadingUserLots);
 
+    // Return all lots for buyers, but only user-specific lots for farmers on the 'userLots' property
     return {
-      lots: user?.role === 'buyer' ? lotsForBuyer : lotsForFarmer,
+      lots: lotsForBuyer, 
       addLot,
       userLots: lotsForFarmer,
       isLoading,
