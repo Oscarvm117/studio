@@ -60,12 +60,12 @@ service cloud.firestore {
        /**
        * @description Secures farmer dashboard data, allowing only the farmer to manage their dashboard.
        * @path /users/{userId}/farmer_dashboard
-       * @allow (create, update, delete, get) - User with ID 'farmer123' can create/update/delete/get their own dashboard when authenticated as 'farmer123'.
-       * @deny (create, update, delete, get) - User with ID 'user456' cannot create/update/delete/get the dashboard of 'farmer123'.
+       * @allow (get, create, update, delete) - User with ID 'farmer123' can create/update/delete/get their own dashboard when authenticated as 'farmer123'.
+       * @deny (get, create, update, delete) - User with ID 'user456' cannot create/update/delete/get the dashboard of 'farmer123'.
        * @principle Restricts access to a user's own data tree.
        */
       match /farmer_dashboard/{docId} {
-        allow get: if isOwner(userId) && resource.data.userId == userId;
+        allow get: if isOwner(userId);
         allow list: if false;
 
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
@@ -78,7 +78,7 @@ service cloud.firestore {
        * @path /users/{userId}/lots/{lotId}
        * @allow (create, delete, get) - User with ID 'farmer123' can create/delete/get their own lot with ID 'lot456' when authenticated as 'farmer123'.
        * @allow (update) - A buyer can update a lot to mark it as sold. The farmer can update any field.
-       * @deny (create, update, delete) - User with ID 'user456' (buyer) cannot create/delete or perform general updates on the lot 'lot456' belonging to 'farmer123'.
+       * @deny (create, delete, update) - User with ID 'user456' (buyer) cannot create/delete or perform general updates on the lot 'lot456' belonging to 'farmer123'.
        * @principle Enforces document ownership and validates relational integrity, with a specific exception for purchases.
        */
       match /lots/{lotId} {
