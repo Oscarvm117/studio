@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
 import type { Lot } from '@/lib/types';
 import { useFirebase } from '@/firebase';
-import { collection, collectionGroup, where, query, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, collectionGroup, where, query, addDoc, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
@@ -27,11 +27,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // This effect handles data fetching logic based on user role and auth state.
-    // It will only run when the user or authentication loading state changes.
-
     if (isAuthLoading) {
-      // If auth state is not resolved yet, do nothing and wait.
       setIsLoadingLots(true);
       return;
     }
@@ -42,7 +38,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
     try {
       if (user?.role === 'buyer') {
-        // User is a buyer, fetch all available lots
         const lotsQuery: Query<DocumentData> = query(
           collectionGroup(firestore, 'lots'),
           where('status', '==', 'available')
@@ -51,9 +46,11 @@ export function LotProvider({ children }: { children: ReactNode }) {
           const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-            harvestDate: new Date(doc.data().harvestDate), // Convert string from DB to Date
+            // Ensure timestamp from DB is converted to a Date object
+            harvestDate: doc.data().harvestDate ? new Date(doc.data().harvestDate) : new Date(),
           } as Lot));
           setAllLots(fetchedLots);
+          setUserLots([]);
           setIsLoadingLots(false);
         }, (err) => {
           console.error('Error fetching lots for buyer:', err);
@@ -61,15 +58,16 @@ export function LotProvider({ children }: { children: ReactNode }) {
           setIsLoadingLots(false);
         });
       } else if (user?.role === 'farmer') {
-        // User is a farmer, fetch their own lots
         const userLotsCollection = collection(firestore, 'users', user.id, 'lots');
         unsubscribe = onSnapshot(userLotsCollection, (snapshot) => {
           const fetchedLots: Lot[] = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-             harvestDate: new Date(doc.data().harvestDate), // Convert string from DB to Date
+            // Ensure timestamp from DB is converted to a Date object
+            harvestDate: doc.data().harvestDate ? new Date(doc.data().harvestDate) : new Date(),
           } as Lot));
           setUserLots(fetchedLots);
+          setAllLots([]);
           setIsLoadingLots(false);
         }, (err) => {
           console.error('Error fetching lots for farmer:', err);
@@ -77,7 +75,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
           setIsLoadingLots(false);
         });
       } else {
-        // No user or role not determined, clear data and stop loading
         setAllLots([]);
         setUserLots([]);
         setIsLoadingLots(false);
@@ -88,10 +85,8 @@ export function LotProvider({ children }: { children: ReactNode }) {
       setIsLoadingLots(false);
     }
 
-    // Cleanup subscription on component unmount or when dependencies change
     return () => unsubscribe();
   }, [firestore, user, isAuthLoading]);
-
 
   const addLot = async (lotData: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => {
     if (!user) {
@@ -107,6 +102,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
       farmerId: user.id,
       farmerName: user.name,
       status: 'available' as 'available' | 'sold',
+      // Ensure the Date object from the form is converted to an ISO string for Firestore
       harvestDate: lotData.harvestDate.toISOString(),
     };
 
@@ -120,8 +116,8 @@ export function LotProvider({ children }: { children: ReactNode }) {
   };
 
   const value = {
-    lots: user?.role === 'buyer' ? allLots : [],
-    userLots: user?.role === 'farmer' ? userLots : [],
+    lots: allLots,
+    userLots: userLots,
     addLot,
     isLoading: isLoadingLots,
     error,
