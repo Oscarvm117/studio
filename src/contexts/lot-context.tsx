@@ -104,13 +104,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
       farmerId: user.id,
       farmerName: user.name,
       status: 'available',
-      harvestDate: typeof lotData.harvestDate === 'string' 
-        ? lotData.harvestDate 
-        : lotData.harvestDate.toISOString(),
+      harvestDate: lotData.harvestDate.toISOString(),
     };
   
     const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-    // Using await here to be able to catch and throw errors to the calling component
     await addDoc(lotsCollection, newLot);
   }, [user, firestore]);
 
