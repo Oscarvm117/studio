@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { Lot, FarmerDashboard } from '@/lib/types';
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
@@ -121,23 +121,36 @@ export function LotProvider({ children }: { children: ReactNode }) {
       harvestDate: lotData.harvestDate.toISOString(),
     };
 
-    try {
-        // 1. Create the new lot document
-        const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-        await addDoc(lotsCollection, newLotData);
-
-        // 2. Update the farmer's dashboard statistics
-        const dashboardRef = doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats');
-        await updateDoc(dashboardRef, {
-            lotsCreated: increment(1),
-            carbonReduced: increment(5), // Placeholder: increment by 5 for each lot
-            emissionReduced: increment(2), // Placeholder: increment by 2 for each lot
+    // 1. Create the new lot document
+    const lotsCollection = collection(firestore, 'users', user.id, 'lots');
+    const lotPromise = addDoc(lotsCollection, newLotData).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: lotsCollection.path,
+            operation: 'create',
+            requestResourceData: newLotData,
         });
+        errorEmitter.emit('permission-error', permissionError);
+        throw error;
+    });
 
-    } catch (error: any) {
-      console.error("Error creating lot and updating dashboard:", error);
-      throw error;
-    }
+    // 2. Update the farmer's dashboard statistics
+    const dashboardRef = doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats');
+    const updatePayload = {
+        lotsCreated: increment(1),
+        carbonReduced: increment(5),
+        emissionReduced: increment(2),
+    };
+    const dashboardPromise = updateDoc(dashboardRef, updatePayload).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: dashboardRef.path,
+            operation: 'update',
+            requestResourceData: updatePayload,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw error;
+    });
+
+    await Promise.all([lotPromise, dashboardPromise]);
   };
 
   const value = {
