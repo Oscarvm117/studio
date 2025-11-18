@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { useCart } from '@/contexts/cart-context';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Sheet,
   SheetContent,
@@ -21,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 
 export function ShoppingCart() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, checkout } = useCart();
+  const { cart, removeFromCart, cartTotal, checkout } = useCart();
   const { toast } = useToast();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -66,7 +65,7 @@ export function ShoppingCart() {
         <SheetHeader className="px-6">
           <SheetTitle>Carrito de Compras</SheetTitle>
           <SheetDescription>
-            Revisa los artículos en tu carrito antes de finalizar la compra.
+            Revisa los lotes en tu carrito antes de finalizar la compra. Cada lote se compra completo.
           </SheetDescription>
         </SheetHeader>
         <Separator />
@@ -89,15 +88,8 @@ export function ShoppingCart() {
                       <p className="text-sm text-muted-foreground">
                         ${item.pricePerKg.toLocaleString('es-CO')} / {item.unit}
                       </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={item.quantity}
-                          value={item.cartQuantity}
-                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value, 10))}
-                          className="h-8 w-20"
-                        />
+                      <div className="mt-2 flex items-center justify-between">
+                        <p className="text-sm font-medium">{item.quantity} {item.unit}</p>
                         <Button
                           variant="outline"
                           size="icon"
