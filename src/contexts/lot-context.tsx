@@ -74,7 +74,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
 
   // Effect for a farmer's own lots
-  useEffect(() => {
+  useEffect(() => { 
     // Wait until auth state is fully resolved
     if (isAuthLoading) {
       setIsLoadingLots(true);
