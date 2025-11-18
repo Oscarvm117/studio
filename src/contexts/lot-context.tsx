@@ -3,13 +3,14 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { Lot, FarmerDashboard } from '@/lib/types';
 import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
 interface LotContextType {
   lots: Lot[];
   addLot: (lot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
+  deleteLot: (lotId: string) => Promise<void>;
   userLots: Lot[];
   dashboardData: FarmerDashboard | null;
   isLoading: boolean;
@@ -105,14 +106,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
 
   const addLot = async (lotData: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => {
-    if (!user) {
-      throw new Error("Debes iniciar sesión para crear lotes.");
-    }
-    
-    if (user.role !== 'farmer') {
+    if (!user || user.role !== 'farmer') {
       throw new Error("Solo los agricultores pueden crear lotes.");
     }
-
+  
     const newLotData = {
       ...lotData,
       farmerId: user.id,
@@ -120,37 +117,53 @@ export function LotProvider({ children }: { children: ReactNode }) {
       status: 'available' as 'available' | 'sold',
       harvestDate: lotData.harvestDate.toISOString(),
     };
-
+  
     // 1. Create the new lot document
     const lotsCollection = collection(firestore, 'users', user.id, 'lots');
     const lotPromise = addDoc(lotsCollection, newLotData).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: lotsCollection.path,
-            operation: 'create',
-            requestResourceData: newLotData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw error;
+      const permissionError = new FirestorePermissionError({
+        path: lotsCollection.path,
+        operation: 'create',
+        requestResourceData: newLotData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      throw error; // re-throw the original error
     });
-
+  
     // 2. Update the farmer's dashboard statistics
     const dashboardRef = doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats');
     const updatePayload = {
-        lotsCreated: increment(1),
-        carbonReduced: increment(5),
-        emissionReduced: increment(2),
+      lotsCreated: increment(1),
+      carbonReduced: increment(5),
+      emissionReduced: increment(2),
     };
     const dashboardPromise = updateDoc(dashboardRef, updatePayload).catch(error => {
+      const permissionError = new FirestorePermissionError({
+        path: dashboardRef.path,
+        operation: 'update',
+        requestResourceData: updatePayload,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      throw error; // re-throw the original error
+    });
+  
+    await Promise.all([lotPromise, dashboardPromise]);
+  };
+  
+  const deleteLot = async (lotId: string) => {
+    if (!user || user.role !== 'farmer') {
+        throw new Error("Solo los agricultores pueden eliminar lotes.");
+    }
+    const lotRef = doc(firestore, 'users', user.id, 'lots', lotId);
+    
+    await deleteDoc(lotRef).catch(error => {
         const permissionError = new FirestorePermissionError({
-            path: dashboardRef.path,
-            operation: 'update',
-            requestResourceData: updatePayload,
+            path: lotRef.path,
+            operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
         throw error;
     });
-
-    await Promise.all([lotPromise, dashboardPromise]);
   };
 
   const value = {
@@ -158,6 +171,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
     userLots: userLots,
     dashboardData: dashboardData ?? null,
     addLot,
+    deleteLot,
     isLoading: isLoadingLots,
     error,
   };
