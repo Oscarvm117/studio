@@ -38,3 +38,12 @@ export type Lot = {
     hint: string;
   };
 };
+
+export type FarmerDashboard = {
+    id: string;
+    userId: string;
+    carbonReduced: number;
+    lotsCreated: number;
+    totalIncome: number;
+    emissionReduced: number;
+};

@@ -43,7 +43,7 @@ function LotCard({ lot }: { lot: Lot }) {
 
 export function LotManagement() {
   const { user } = useAuth();
-  const { userLots, isLoading } = useLots();
+  const { userLots, dashboardData, isLoading } = useLots();
   
   if (!user) return null;
   
@@ -52,7 +52,7 @@ export function LotManagement() {
 
   return (
     <div className="space-y-8">
-      <DashboardStats lots={userLots} />
+      <DashboardStats lots={userLots} dashboardData={dashboardData} />
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">

@@ -108,8 +108,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
 
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      // Wait for the document to be created before proceeding.
       await setDoc(userDocRef, userForDb);
+
+      if (role === 'farmer') {
+        const dashboardDocRef = doc(firestore, `users/${newUser.uid}/farmer_dashboard`, 'stats');
+        await setDoc(dashboardDocRef, {
+            userId: newUser.uid,
+            carbonReduced: 0,
+            lotsCreated: 0,
+            totalIncome: 0,
+            emissionReduced: 0,
+        });
+      }
 
       // Set the user in state
       setUser(userForDb);

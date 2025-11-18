@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
-import type { Lot } from '@/lib/types';
-import { useFirebase } from '@/firebase';
-import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
+import type { Lot, FarmerDashboard } from '@/lib/types';
+import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, collectionGroup, query, where, addDoc, onSnapshot, Timestamp, doc } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
@@ -11,6 +11,7 @@ interface LotContextType {
   lots: Lot[];
   addLot: (lot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
   userLots: Lot[];
+  dashboardData: FarmerDashboard | null;
   isLoading: boolean;
   error: Error | null;
 }
@@ -25,6 +26,13 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const [userLots, setUserLots] = useState<Lot[]>([]);
   const [isLoadingLots, setIsLoadingLots] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Hook for farmer's dashboard data
+  const dashboardDocRef = useMemoFirebase(
+    () => (user?.role === 'farmer' ? doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats') : null),
+    [firestore, user]
+  );
+  const { data: dashboardData } = useDoc<FarmerDashboard>(dashboardDocRef);
 
   useEffect(() => {
     let unsubscribe: () => void = () => {};
@@ -46,7 +54,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
           const fetchedLots: Lot[] = snapshot.docs
             .map((doc) => {
               const data = doc.data();
-              // data.harvestDate is a string, convert it to a Date object.
               const harvestDate = new Date(data.harvestDate);
               return {
                 id: doc.id,
@@ -70,7 +77,6 @@ export function LotProvider({ children }: { children: ReactNode }) {
         unsubscribe = onSnapshot(userLotsCollection, (snapshot) => {
           const fetchedLots: Lot[] = snapshot.docs.map((doc) => {
              const data = doc.data();
-             // data.harvestDate is a string, convert it to a Date object.
              const harvestDate = new Date(data.harvestDate);
              return {
                 id: doc.id,
@@ -131,6 +137,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
   const value = {
     lots: allLots,
     userLots: userLots,
+    dashboardData: dashboardData ?? null,
     addLot,
     isLoading: isLoadingLots,
     error,
