@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -88,6 +88,16 @@ export function CreateLotDialog() {
     },
   });
 
+  const quantity = form.watch('quantity');
+  const pricePerKg = form.watch('pricePerKg');
+  const [totalIncome, setTotalIncome] = useState(0);
+
+  useEffect(() => {
+    const income = (quantity || 0) * (pricePerKg || 0);
+    setTotalIncome(income);
+  }, [quantity, pricePerKg]);
+
+
   async function onSubmit(values: z.infer<typeof lotSchema>) {
     setIsSubmitting(true);
     const newLotData = {
@@ -150,6 +160,21 @@ export function CreateLotDialog() {
               />
               <FormField
                 control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ubicación</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Villa de Leyva, Boyacá" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
@@ -161,9 +186,7 @@ export function CreateLotDialog() {
                   </FormItem>
                 )}
               />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
+               <FormField
                 control={form.control}
                 name="unit"
                 render={({ field }) => (
@@ -183,7 +206,35 @@ export function CreateLotDialog() {
                   </FormItem>
                 )}
               />
-              <FormField
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+               <FormField
+                control={form.control}
+                name="pricePerKg"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Precio por unidad (COP)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Ej: 3500" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormItem>
+                <FormLabel>Ingreso total estimado</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="text" 
+                    readOnly 
+                    disabled
+                    value={totalIncome.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
+                    className="bg-muted text-muted-foreground"
+                  />
+                </FormControl>
+              </FormItem>
+            </div>
+             <FormField
                 control={form.control}
                 name="harvestDate"
                 render={({ field }) => (
@@ -224,35 +275,6 @@ export function CreateLotDialog() {
                   </FormItem>
                 )}
               />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ubicación</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: Villa de Leyva, Boyacá" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="pricePerKg"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Precio por kg (COP)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="Ej: 3500" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
             
             <CertificationPicker control={form.control} />
 
