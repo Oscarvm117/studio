@@ -28,7 +28,7 @@ export type Lot = {
   productType: string;
   quantity: number;
   unit: Unit;
-  harvestDate: string; // Changed to string to be serializable
+  harvestDate: Date; // Changed to Date to be consistent
   location: string;
   pricePerKg: number;
   certifications: Certification[];
