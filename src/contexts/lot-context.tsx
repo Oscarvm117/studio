@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { Lot, FarmerDashboard } from '@/lib/types';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, collectionGroup, query, where, addDoc, onSnapshot, Timestamp, doc, writeBatch, increment } from 'firebase/firestore';
+import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
@@ -52,11 +52,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
           const fetchedLots: Lot[] = snapshot.docs
             .map((doc) => {
               const data = doc.data();
-              const harvestDate = new Date(data.harvestDate);
               return {
                 id: doc.id,
                 ...data,
-                harvestDate,
+                harvestDate: new Date(data.harvestDate),
               } as Lot;
             })
             .filter(lot => lot.status === 'available');
@@ -75,11 +74,10 @@ export function LotProvider({ children }: { children: ReactNode }) {
         unsubscribe = onSnapshot(userLotsCollection, (snapshot) => {
           const fetchedLots: Lot[] = snapshot.docs.map((doc) => {
              const data = doc.data();
-             const harvestDate = new Date(data.harvestDate);
              return {
                 id: doc.id,
                 ...data,
-                harvestDate,
+                harvestDate: new Date(data.harvestDate),
              } as Lot;
           });
           setUserLots(fetchedLots);
@@ -124,23 +122,17 @@ export function LotProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-        const batch = writeBatch(firestore);
-        
         // 1. Create the new lot document
         const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-        const newLotRef = doc(lotsCollection); // Create a reference with a new ID
-        batch.set(newLotRef, newLotData);
+        await addDoc(lotsCollection, newLotData);
 
         // 2. Update the farmer's dashboard statistics
         const dashboardRef = doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats');
-        batch.update(dashboardRef, {
+        await updateDoc(dashboardRef, {
             lotsCreated: increment(1),
             carbonReduced: increment(5), // Placeholder: increment by 5 for each lot
             emissionReduced: increment(2), // Placeholder: increment by 2 for each lot
         });
-
-        // 3. Commit the batch
-        await batch.commit();
 
     } catch (error: any) {
       console.error("Error creating lot and updating dashboard:", error);
