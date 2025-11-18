@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/cart-context';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { QRCodeCanvas } from 'qrcode.react';
+import { QrCode } from 'lucide-react';
 
 interface LotCardProps {
   lot: Lot;
@@ -22,6 +25,14 @@ export function BuyerLotCard({ lot }: LotCardProps) {
       description: `${lot.productType} ha sido añadido a tu carrito.`,
     });
   }
+
+  const lotInfo = `
+Producto: ${lot.productType}
+Cantidad: ${lot.quantity} ${lot.unit}
+Cosecha: ${new Date(lot.harvestDate).toLocaleDateString('es-CO')}
+Ubicación: ${lot.location}
+Agricultor: ${lot.farmerName}
+  `.trim();
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
@@ -59,11 +70,29 @@ export function BuyerLotCard({ lot }: LotCardProps) {
             ))}
         </div>
       </CardContent>
-      <CardFooter>
-        <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleAddToCart}>
+      <CardFooter className="flex justify-between items-center gap-2">
+        <Button className="flex-grow bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleAddToCart}>
           <ShoppingCart className="mr-2 h-4 w-4" />
           Agregar al Carrito
         </Button>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="default" size="icon">
+                    <QrCode className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Información del Lote</DialogTitle>
+                    <DialogDescription>
+                        Este código QR contiene los detalles básicos del lote.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center justify-center p-4">
+                    <QRCodeCanvas value={lotInfo} size={256} />
+                </div>
+            </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   );
