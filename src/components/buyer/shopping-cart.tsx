@@ -16,21 +16,34 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart as ShoppingCartIcon, Trash2 } from 'lucide-react';
+import { ShoppingCart as ShoppingCartIcon, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export function ShoppingCart() {
-  const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, checkout } = useCart();
   const { toast } = useToast();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    toast({
-        title: '¡Pedido Realizado!',
-        description: `Tu compra por un total de $${cartTotal.toLocaleString('es-CO')} ha sido exitosa.`,
-    });
-    clearCart();
+    setIsCheckingOut(true);
+    try {
+      await checkout();
+      toast({
+          title: '¡Pedido Realizado!',
+          description: `Tu compra por un total de $${cartTotal.toLocaleString('es-CO')} ha sido exitosa.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error al procesar la compra',
+        description: error.message || 'No se pudo completar el pedido. Por favor, intenta de nuevo.',
+      });
+    } finally {
+      setIsCheckingOut(false);
+    }
   }
 
   return (
@@ -107,7 +120,8 @@ export function ShoppingCart() {
                         <span>Total:</span>
                         <span>${cartTotal.toLocaleString('es-CO')}</span>
                     </div>
-                    <Button onClick={handleCheckout} className="w-full">
+                    <Button onClick={handleCheckout} className="w-full" disabled={isCheckingOut}>
+                        {isCheckingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Finalizar Compra
                     </Button>
                 </div>

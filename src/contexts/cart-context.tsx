@@ -3,6 +3,8 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useState } from 'react';
 import type { Lot } from '@/lib/types';
+import { useFirebase } from '@/firebase';
+import { doc, writeBatch } from 'firebase/firestore';
 
 export interface CartItem extends Lot {
   cartQuantity: number;
@@ -14,6 +16,7 @@ interface CartContextType {
   removeFromCart: (lotId: string) => void;
   updateQuantity: (lotId: string, quantity: number) => void;
   clearCart: () => void;
+  checkout: () => Promise<void>;
   cartTotal: number;
 }
 
@@ -21,6 +24,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const { firestore } = useFirebase();
 
   const addToCart = (lot: Lot) => {
     setCart((prevCart) => {
@@ -56,6 +60,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart([]);
   };
 
+  const checkout = async () => {
+    if (cart.length === 0) return;
+
+    const batch = writeBatch(firestore);
+
+    cart.forEach(item => {
+      // The path to the lot is /users/{farmerId}/lots/{lotId}
+      const lotRef = doc(firestore, 'users', item.farmerId, 'lots', item.id);
+      batch.update(lotRef, { status: 'sold' });
+    });
+
+    await batch.commit();
+    clearCart();
+  };
+
+
   const cartTotal = cart.reduce((total, item) => total + item.pricePerKg * item.cartQuantity, 0);
 
   const value = {
@@ -64,6 +84,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     removeFromCart,
     updateQuantity,
     clearCart,
+    checkout,
     cartTotal,
   };
 
