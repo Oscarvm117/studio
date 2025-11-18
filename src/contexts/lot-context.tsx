@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { Lot, FarmerDashboard } from '@/lib/types';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, collectionGroup, query, where, addDoc, onSnapshot, Timestamp, doc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, addDoc, onSnapshot, Timestamp, doc, writeBatch, increment } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
@@ -47,9 +47,7 @@ export function LotProvider({ children }: { children: ReactNode }) {
 
     try {
       if (user?.role === 'buyer') {
-        const lotsQuery: Query<DocumentData> = query(
-          collectionGroup(firestore, 'lots')
-        );
+        const lotsQuery: Query<DocumentData> = query(collectionGroup(firestore, 'lots'));
         unsubscribe = onSnapshot(lotsQuery, (snapshot) => {
           const fetchedLots: Lot[] = snapshot.docs
             .map((doc) => {
@@ -126,10 +124,26 @@ export function LotProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-      const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-      await addDoc(lotsCollection, newLotData);
+        const batch = writeBatch(firestore);
+        
+        // 1. Create the new lot document
+        const lotsCollection = collection(firestore, 'users', user.id, 'lots');
+        const newLotRef = doc(lotsCollection); // Create a reference with a new ID
+        batch.set(newLotRef, newLotData);
+
+        // 2. Update the farmer's dashboard statistics
+        const dashboardRef = doc(firestore, 'users', user.id, 'farmer_dashboard', 'stats');
+        batch.update(dashboardRef, {
+            lotsCreated: increment(1),
+            carbonReduced: increment(5), // Placeholder: increment by 5 for each lot
+            emissionReduced: increment(2), // Placeholder: increment by 2 for each lot
+        });
+
+        // 3. Commit the batch
+        await batch.commit();
+
     } catch (error: any) {
-      console.error("Error creating lot in Firestore:", error);
+      console.error("Error creating lot and updating dashboard:", error);
       throw error;
     }
   };
