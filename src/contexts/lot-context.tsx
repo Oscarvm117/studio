@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { Lot, FarmerDashboard } from '@/lib/types';
 import { useFirebase, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, addDoc, onSnapshot, Timestamp, doc, updateDoc, increment, deleteDoc, setDoc } from 'firebase/firestore';
 import type { Query, DocumentData } from 'firebase/firestore';
 import { useAuth } from './auth-context';
 
@@ -137,14 +137,16 @@ export function LotProvider({ children }: { children: ReactNode }) {
       carbonReduced: increment(5),
       emissionReduced: increment(2),
     };
-    const dashboardPromise = updateDoc(dashboardRef, updatePayload).catch(error => {
-      const permissionError = new FirestorePermissionError({
-        path: dashboardRef.path,
-        operation: 'update',
-        requestResourceData: updatePayload,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      throw error; // re-throw the original error
+
+    // Use setDoc with merge:true to create or update the document.
+    const dashboardPromise = setDoc(dashboardRef, updatePayload, { merge: true }).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: dashboardRef.path,
+            operation: 'update',
+            requestResourceData: updatePayload,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw error;
     });
   
     await Promise.all([lotPromise, dashboardPromise]);
