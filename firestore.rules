@@ -65,7 +65,7 @@ service cloud.firestore {
        * @principle Restricts access to a user's own data tree.
        */
       match /farmer_dashboard/{docId} {
-        allow get: if isOwner(userId);
+        allow get: if isOwner(userId) && resource.data.userId == userId;
         allow list: if false;
 
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
