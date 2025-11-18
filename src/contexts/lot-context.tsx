@@ -3,7 +3,8 @@
 import { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Lot } from '@/lib/types';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, collectionGroup, where, query, addDoc } from 'firebase/firestore';
+import { collection, collectionGroup, where, query, addDoc, doc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface LotContextType {
   lots: Lot[];
@@ -17,6 +18,7 @@ const LotContext = createContext<LotContextType | undefined>(undefined);
 export function LotProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { user } = useUser();
+  const { toast } = useToast();
 
   // Query for all available lots for buyers using a collection group query
   const allLotsQuery = useMemoFirebase(
@@ -45,8 +47,15 @@ export function LotProvider({ children }: { children: ReactNode }) {
       harvestDate: lotData.harvestDate.toISOString(), // Ensure date is a string
     };
 
-    const lotsCollection = collection(firestore, 'users', user.id, 'lots');
-    await addDoc(lotsCollection, newLot);
+    try {
+      const lotsCollection = collection(firestore, 'users', user.id, 'lots');
+      await addDoc(lotsCollection, newLot);
+      // The real-time listener from useCollection will automatically update the UI.
+    } catch (error: any) {
+      console.error("Error creating lot in Firestore: ", error);
+      // Re-throw the error so the calling component can handle it (e.g., show a toast)
+      throw new Error(error.message || 'No se pudo crear el lote. Verifica tus permisos.');
+    }
   };
 
   const value = useMemo(() => {
@@ -54,12 +63,12 @@ export function LotProvider({ children }: { children: ReactNode }) {
     const lotsForFarmer = userLotsData || [];
     
     return {
-      lots: lotsForBuyer,
+      lots: user?.role === 'buyer' ? lotsForBuyer : lotsForFarmer,
       addLot,
       userLots: lotsForFarmer,
       isLoading: user?.role === 'buyer' ? isLoadingAllLots : isLoadingUserLots,
     };
-  }, [allLotsData, userLotsData, user, isLoadingAllLots, isLoadingUserLots]);
+  }, [allLotsData, userLotsData, user, isLoadingAllLots, isLoadingUserLots, addLot]);
 
 
   return <LotContext.Provider value={value}>{children}</LotContext.Provider>;

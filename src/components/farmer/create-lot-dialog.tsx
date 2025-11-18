@@ -44,6 +44,7 @@ import type { Lot } from '@/lib/types';
 import { CertificationPicker } from './certification-picker';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useLots } from '@/contexts/lot-context';
 
 const lotSchema = z.object({
   productType: z.string().min(1, 'El tipo de producto es requerido.'),
@@ -55,14 +56,12 @@ const lotSchema = z.object({
   certifications: z.array(z.enum(certifications)).optional().default([]),
 });
 
-interface CreateLotDialogProps {
-  onLotCreated: (newLot: Omit<Lot, 'id' | 'farmerId' | 'farmerName' | 'status'>) => Promise<void>;
-}
-
-export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
+// The onLotCreated prop is no longer needed as we use the context directly
+export function CreateLotDialog() {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { addLot } = useLots();
 
   const getLotImage = (productType: string) => {
     const hint = productType.toLowerCase();
@@ -97,7 +96,7 @@ export function CreateLotDialog({ onLotCreated }: CreateLotDialogProps) {
     };
 
     try {
-        await onLotCreated(newLotData);
+        await addLot(newLotData);
         toast({
             title: '¡Lote Creado!',
             description: `El lote de ${values.productType} ha sido agregado al mercado.`,

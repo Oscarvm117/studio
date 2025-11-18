@@ -29,7 +29,7 @@ function LotCard({ lot }: { lot: Lot }) {
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
         <p><strong>Cantidad:</strong> {lot.quantity} {lot.unit}</p>
-        <p><strong>Precio/{lot.unit}:</strong> ${lot.pricePerKg.toLocaleString('es-CO')} COP</p>
+        <p><strong>Precio/{lot.unit === 'docena' ? 'doc' : lot.unit}:</strong> ${lot.pricePerKg.toLocaleString('es-CO')} COP</p>
         <p><strong>Cosecha:</strong> {new Date(lot.harvestDate).toLocaleDateString('es-CO')}</p>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-1">
@@ -43,13 +43,9 @@ function LotCard({ lot }: { lot: Lot }) {
 
 export function LotManagement() {
   const { user } = useAuth();
-  const { addLot, userLots } = useLots();
+  const { userLots, isLoading } = useLots();
   
   if (!user) return null;
-
-  const handleLotCreated = async (newLotData: Omit<Lot, 'id'|'farmerId'|'farmerName'|'status'>) => {
-    await addLot(newLotData);
-  };
   
   const availableLots = userLots.filter(lot => lot.status === 'available');
   const soldLots = userLots.filter(lot => lot.status === 'sold');
@@ -61,15 +57,19 @@ export function LotManagement() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Mis Lotes</h2>
-          <CreateLotDialog onLotCreated={handleLotCreated} />
+          <CreateLotDialog />
         </div>
         <Tabs defaultValue="available">
           <TabsList>
-            <TabsTrigger value="available">Lotes Disponibles</TabsTrigger>
-            <TabsTrigger value="sold">Lotes Vendidos</TabsTrigger>
+            <TabsTrigger value="available">Lotes Disponibles ({availableLots.length})</TabsTrigger>
+            <TabsTrigger value="sold">Lotes Vendidos ({soldLots.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="available">
-            {availableLots.length > 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center py-24">
+                 <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              </div>
+            ) : availableLots.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {availableLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
               </div>
@@ -78,7 +78,11 @@ export function LotManagement() {
             )}
           </TabsContent>
           <TabsContent value="sold">
-            {soldLots.length > 0 ? (
+             {isLoading ? (
+              <div className="flex justify-center items-center py-24">
+                 <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              </div>
+            ) : soldLots.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {soldLots.map(lot => <LotCard key={lot.id} lot={lot} />)}
               </div>
