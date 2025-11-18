@@ -28,15 +28,17 @@ service cloud.firestore {
     }
     
     // Helper function to check which fields are being updated
-    function isUpdatingFields(fields) {
-      return request.resource.data.keys().hasAll(fields) && request.resource.data.keys().size() == fields.size();
-    }
-    
     function isChangingOnlyStatusToSold() {
       // Allow update if only the 'status' field is being changed to 'sold'
       // and no other fields are being modified.
-      let otherFields = request.resource.data.diff(resource.data).affectedKeys();
-      return otherFields.size() == 1 && otherFields.has('status') && request.resource.data.status == 'sold';
+      let incomingData = request.resource.data;
+      let existingData = resource.data;
+      // Check that the status is changing to 'sold'
+      let statusChange = incomingData.status == 'sold' && existingData.status != 'sold';
+      // Check that no other fields are being modified. We compare all keys except 'status'.
+      let otherFieldsUnchanged = incomingData.diff(existingData).affectedKeys().size() == 1 && incomingData.diff(existingData).affectedKeys().hasOnly(['status']);
+      
+      return statusChange && otherFieldsUnchanged;
     }
 
 
@@ -102,7 +104,6 @@ service cloud.firestore {
      * This allows buyers to view all available lots from any farmer in a single query.
      * @path /{path=**}/lots/{lotId}
      * @allow list - Any authenticated user (buyer or farmer) can perform a 'list' operation.
-     * The app client-side logic should filter for `status == 'available'`.
      */
     match /{path=**}/lots/{lotId} {
         allow list: if isSignedIn();
